@@ -1,7 +1,7 @@
 import type { ChatInputCommandInteraction } from 'discord.js';
 
-import setWelcome from '../../src/commands/admin/set-welcome';
-import type { AppContext } from '../../src/types';
+import SetWelcomeCommand from '../../src/commands/admin/set-welcome';
+import type { WelcomeSettingsService } from '../../src/services';
 
 describe('/set-welcome', () => {
   it('passes the selected guild and channel to the service', async () => {
@@ -12,11 +12,10 @@ describe('/set-welcome', () => {
       options: { getChannel: jest.fn().mockReturnValue({ id: 'channel-1' }) },
       reply,
     } as unknown as ChatInputCommandInteraction;
-    const context = {
-      services: { welcomeSettings: { setWelcomeChannel } },
-    } as unknown as AppContext;
+    const welcomeSettings = { setWelcomeChannel } as unknown as WelcomeSettingsService;
+    const command = new SetWelcomeCommand(welcomeSettings);
 
-    await setWelcome.execute(interaction, context);
+    await command.execute(interaction);
 
     expect(setWelcomeChannel).toHaveBeenCalledWith('guild-1', 'channel-1');
     expect(reply).toHaveBeenCalledWith({ content: 'Welcome channel set to <#channel-1>.' });

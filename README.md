@@ -39,6 +39,7 @@ Never commit `.env`, `.env.development`, tokens, or application secrets. Product
 src/
   commands/{admin,general}/
   config/
+  container/
   database/{entities,migrations,repositories}/
   events/
   handlers/
@@ -53,39 +54,64 @@ tests/
 .github/workflows/
 ```
 
-- Commands declare Discord data and metadata, validate Discord-specific input, call a service, and format the response.
-- Handlers load modules and enforce permissions, guild-only use, cooldowns, disabled commands, and error responses.
-- Services contain business logic and receive repositories or other dependencies through constructors.
-- `AppContext` exposes config, logging, the database, repositories, and services. `bootstrap.ts` assembles it once and passes it to handlers; commands do not fetch global singletons.
+- Commands are injectable classes with static Discord definitions. They validate Discord-specific input, call an injected service, and format the response.
+- Handlers and events are injectable classes. The loaders resolve them through an application-scoped TSyringe child container.
+- Services and repositories declare concrete dependencies in their constructors and are auto-resolved. Adding a normal stateless service requires no change to `bootstrap.ts` or a central service interface.
+- `src/container` registers only infrastructure values, non-class tokens, and special lifetimes. The container is confined to bootstrap and loaders, preventing service-locator calls from application code.
+- Static command definitions can be deployed without constructing commands or initializing their runtime dependencies.
 - The TypeORM data source explicitly disables schema synchronization. Schema changes belong in migrations.
 
 ## Adding a slash command
 
-Create a default-exported `SlashCommand` under a category in `src/commands/`. The recursive loader finds it automatically:
+Create a default-exported injectable command class under a category in `src/commands/`. The recursive loader finds and resolves it automatically:
 
 ```ts
-import { PermissionFlagsBits, SlashCommandBuilder } from 'discord.js';
-import type { SlashCommand } from '../../types';
+import {
+  PermissionFlagsBits,
+  SlashCommandBuilder,
+  type ChatInputCommandInteraction,
+} from 'discord.js';
+import { injectable } from 'tsyringe';
+import { ExampleService } from '../../services/example.service';
+import type { CommandExecutor, CommandMetadata } from '../../types';
 
-const command: SlashCommand = {
-  data: new SlashCommandBuilder().setName('example').setDescription('Run an example'),
-  metadata: {
+@injectable()
+export default class ExampleCommand implements CommandExecutor {
+  static readonly data = new SlashCommandBuilder()
+    .setName('example')
+    .setDescription('Run an example');
+
+  static readonly metadata: CommandMetadata = {
     category: 'general',
     enabled: true,
     guildOnly: false,
     cooldownSeconds: 5,
     requiredUserPermissions: [PermissionFlagsBits.SendMessages],
-  },
-  async execute(interaction, context) {
-    // Put reusable work in a service and call it through context.services.
-    await interaction.reply('Done.');
-  },
-};
+  };
 
-export default command;
+  constructor(private readonly examples: ExampleService) {}
+
+  async execute(interaction: ChatInputCommandInteraction): Promise<void> {
+    const result = await this.examples.run();
+    await interaction.reply(result);
+  }
+}
 ```
 
 Run `npm run commands:deploy:guild` after definition changes in development. Reserve `npm run commands:deploy` for production because global propagation can take longer.
+
+## Adding dependencies
+
+Decorate concrete services and repositories with `@injectable()` and declare their dependencies in the constructor. TSyringe can resolve concrete classes without adding them to a central list:
+
+```ts
+@injectable()
+export class ExampleService {
+  constructor(private readonly settings: GuildSettingsRepository) {}
+}
+```
+
+Add a container registration only when a dependency is an interface, configuration value, factory function, existing external instance, or requires a non-transient lifetime. Use a symbol in `src/container/tokens.ts` for interface and value tokens. Do not import or resolve the container from commands, services, repositories, or events.
 
 ## Database migrations
 
@@ -116,7 +142,7 @@ TypeORM CLI commands load `.env.development` outside production and otherwise us
 
 ## Testing
 
-Commands are invoked directly with small mocked interactions and contexts; no websocket is necessary. Services use mocked repositories. Database tests use in-memory SQLite with real migrations. The offline bootstrap test exercises automatic command/event loading and graceful database shutdown.
+Commands are instantiated directly with mocked constructor dependencies and small mocked interactions; no websocket or DI container is necessary. Services use mocked repositories. Container tests verify automatic resolution and application-scoped lifetimes. Database tests use in-memory SQLite with real migrations. The offline bootstrap test exercises automatic command/event loading and graceful database shutdown.
 
 ## Production deployment
 

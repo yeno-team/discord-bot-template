@@ -30,7 +30,6 @@ describe('bootstrap', () => {
     expect(application.context.commands.has('ping')).toBe(true);
     expect(application.context.commands.has('set-welcome')).toBe(true);
     expect(database.migrations).toHaveLength(1);
-
     await application.shutdown('test complete');
     expect(database.isInitialized).toBe(false);
   });

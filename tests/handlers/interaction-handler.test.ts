@@ -5,9 +5,10 @@ import {
   type ChatInputCommandInteraction,
 } from 'discord.js';
 
-import { handleInteraction } from '../../src/handlers';
+import { InteractionHandler } from '../../src/handlers';
 import { CooldownService } from '../../src/services';
-import type { AppContext, SlashCommand } from '../../src/types';
+import type { SlashCommand } from '../../src/types';
+import type { AppLogger } from '../../src/utils/logger';
 
 function createInteraction(overrides: { readonly guildId?: string | null } = {}): {
   interaction: ChatInputCommandInteraction;
@@ -29,12 +30,10 @@ function createInteraction(overrides: { readonly guildId?: string | null } = {})
   return { interaction, reply };
 }
 
-function createContext(command: SlashCommand): AppContext {
-  return {
-    commands: new Collection([['example', command]]),
-    services: { cooldowns: new CooldownService() },
-    logger: { error: jest.fn() },
-  } as unknown as AppContext;
+function createHandler(command: SlashCommand): InteractionHandler {
+  return new InteractionHandler(new Collection([['example', command]]), new CooldownService(), {
+    error: jest.fn(),
+  } as unknown as AppLogger);
 }
 
 describe('handleInteraction', () => {
@@ -47,7 +46,7 @@ describe('handleInteraction', () => {
     };
     const { interaction, reply } = createInteraction({ guildId: null });
 
-    await handleInteraction(interaction, createContext(command));
+    await createHandler(command).handle(interaction);
 
     expect(execute).not.toHaveBeenCalled();
     expect(reply).toHaveBeenCalledWith({
@@ -63,11 +62,11 @@ describe('handleInteraction', () => {
       metadata: { category: 'test' },
       execute,
     };
-    const context = createContext(command);
+    const handler = createHandler(command);
     const { interaction } = createInteraction();
 
-    await handleInteraction(interaction, context);
+    await handler.handle(interaction);
 
-    expect(execute).toHaveBeenCalledWith(interaction, context);
+    expect(execute).toHaveBeenCalledWith(interaction);
   });
 });

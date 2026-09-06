@@ -2,7 +2,7 @@ import 'reflect-metadata';
 
 import type { DataSource } from 'typeorm';
 
-import { createDataSource, GuildSettingsEntity, GuildSettingsRepository } from '../../src/database';
+import { createDataSource, GuildSettingsRepository } from '../../src/database';
 
 describe('database layer', () => {
   let dataSource: DataSource;
@@ -23,7 +23,7 @@ describe('database layer', () => {
   });
 
   it('stores and updates guild settings through the repository', async () => {
-    const repository = new GuildSettingsRepository(dataSource.getRepository(GuildSettingsEntity));
+    const repository = new GuildSettingsRepository(dataSource);
 
     await repository.upsert('guild-1', { welcomeChannelId: 'channel-1' });
     await repository.upsert('guild-1', { welcomeChannelId: 'channel-2' });

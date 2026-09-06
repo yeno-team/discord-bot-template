@@ -6,6 +6,7 @@ const config = {
   coverageProvider: 'v8',
   moduleFileExtensions: ['ts', 'js', 'json'],
   roots: ['<rootDir>/tests'],
+  setupFiles: ['reflect-metadata'],
   testEnvironment: 'node',
   transform: {
     '^.+\\.ts$': [
