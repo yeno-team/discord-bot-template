@@ -2,6 +2,8 @@
 
 A production-oriented Discord bot starter using TypeScript, `discord.js`, TypeORM, SQLite, Jest, and dependency injection through a small application context. It supports slash commands only and contains no project-specific behavior beyond two replaceable examples.
 
+Use GitHub's **Use this template** button or clone the repository, then rename the package and replace the example commands with your bot's features. Deployment is opt-in and cannot run from the untouched template.
+
 ## Requirements
 
 - Node.js 22 or newer
@@ -67,6 +69,7 @@ src/
   index.ts
 scripts/
 tests/
+.github/deployment/
 .github/workflows/
 ```
 
@@ -155,6 +158,7 @@ TypeORM CLI commands load `.env.development` outside production and otherwise us
 | `npm run format` / `npm run format:check` | Write or verify Prettier formatting         |
 | `npm run commands:deploy:guild`           | Register commands in the development guild  |
 | `npm run commands:deploy`                 | Register global production commands         |
+| `npm run deployment:enable`               | Opt this repository into AWS deployment     |
 | `npm run migration:*`                     | Create, generate, run, or revert migrations |
 
 ## Testing
@@ -163,7 +167,19 @@ Commands are instantiated directly with mocked constructor dependencies and smal
 
 ## Production deployment
 
-CI checks formatting, linting, tests with coverage, and the production build. A successful `CI` run on `main` triggers the deployment workflow; it can also be started manually. The workflow builds the exact tested commit, publishes a non-root image to GitHub Container Registry, deploys it to an EC2 instance through AWS Systems Manager, waits for the Compose services, and then registers global slash commands.
+Deployment is **disabled in this template repository**. The example workflow is stored at `.github/deployment/deploy.yml`, outside GitHub's executable `.github/workflows/` directory. Publishing or pushing changes to the public template therefore cannot deploy a bot.
+
+After creating a separate bot repository from this template:
+
+1. Create and configure the Discord application and AWS EC2/Systems Manager target.
+2. Create a protected GitHub environment named `production` and add the secrets listed below. Environment approval rules are recommended.
+3. Add a repository Actions variable named `DEPLOYMENT_ENABLED` with the value `true`.
+4. Run `npm run deployment:enable`. Review and commit the generated `.github/workflows/deploy.yml` in the bot repository.
+5. Push to `main`. A successful `CI` run will deploy that tested commit. The workflow can also be run manually from GitHub Actions.
+
+The variable check is a second opt-in guard: even a copied workflow will skip deployment until `DEPLOYMENT_ENABLED` is explicitly set to `true`. To disable future deployments, delete or rename `.github/workflows/deploy.yml`, or change the variable to `false`.
+
+The enabled workflow builds the exact tested commit, publishes a non-root image to GitHub Container Registry, deploys it to an EC2 instance through AWS Systems Manager, waits for the Compose services, and then registers global slash commands.
 
 Create a protected GitHub environment named `production` with these secrets:
 
@@ -180,6 +196,8 @@ The EC2 instance must be registered with Systems Manager and have an instance pr
 
 The deployment writes the runtime environment to `/opt/discord-bot/.env` with mode `0600`. Redis is reached on the private Compose network, so production does not require a separate `REDIS_URL` secret. Startup applies migrations; SIGINT and SIGTERM close Discord, Redis, and SQLite cleanly.
 
+Only secret names and generic runtime defaults are committed. Discord tokens, AWS credentials, instance IDs, registry credentials, and generated production `.env` files remain in GitHub Secrets or on the target host.
+
 ```sh
 docker build -t discord-bot-template .
 docker run --rm \
@@ -189,3 +207,7 @@ docker run --rm \
   -v discord-bot-data:/app/data \
   discord-bot-template
 ```
+
+## License
+
+Available under the [MIT License](LICENSE).

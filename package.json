@@ -20,6 +20,7 @@
     "format:check": "prettier --check .",
     "commands:deploy": "cross-env NODE_ENV=production tsx scripts/deploy-commands.ts",
     "commands:deploy:guild": "cross-env NODE_ENV=development tsx scripts/deploy-commands.ts --guild",
+    "deployment:enable": "tsx scripts/enable-deployment.ts",
     "migration:create": "typeorm-ts-node-commonjs migration:create",
     "migration:generate": "typeorm-ts-node-commonjs migration:generate -d src/database/cli-data-source.ts",
     "migration:run": "typeorm-ts-node-commonjs migration:run -d src/database/cli-data-source.ts",
