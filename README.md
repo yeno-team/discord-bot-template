@@ -7,29 +7,44 @@ A production-oriented Discord bot starter using TypeScript, `discord.js`, TypeOR
 - Node.js 22 or newer
 - A Discord application and bot token
 - A development Discord server for fast guild-scoped command updates
+- Docker Compose, which supplies the required Redis service
 
 ## Quick start
 
-1. Install dependencies with `npm install`.
-2. Copy `.env.example` to `.env.development` and replace the placeholders. The resulting file is ignored by Git.
-3. Register commands and start the bot:
+1. Copy `.env.example` to `.env.development` and replace the Discord placeholders. The resulting file is ignored by Git.
+2. Install dependencies and deploy the development commands:
 
    ```sh
+   npm install
    npm run commands:deploy:guild
-   npm run dev
    ```
 
-The database and its parent directory are created on first startup. Pending TypeORM migrations run before Discord connects.
+3. Build and start the bot, Redis, and persistent volumes:
+
+   ```sh
+   docker compose up --build -d
+   ```
+
+SQLite is embedded in the bot rather than hosted by a separate database server. Compose mounts its file at `/app/data/bot.sqlite` using the `bot-data` volume. Redis runs as a separate service using the `redis-data` volume. Pending TypeORM migrations run before Discord connects.
+
+For native hot-reload development, start only Redis and run the bot on the host:
+
+```sh
+npm install
+docker compose up redis -d
+npm run commands:deploy:guild
+npm run dev
+```
 
 ## Environment behavior
 
 | Environment | Configuration source                                 | Default database    | Command deployment |
 | ----------- | ---------------------------------------------------- | ------------------- | ------------------ |
 | Development | `.env.development`, then existing environment values | `./data/bot.sqlite` | Guild-scoped       |
-| Test        | Explicit test environment only                       | `:memory:`          | Not used           |
+| Test        | Explicit values with injected Redis doubles          | `:memory:`          | Not used           |
 | Production  | `process.env` only                                   | `./data/bot.sqlite` | Global             |
 
-`DISCORD_TOKEN` and `DISCORD_CLIENT_ID` are required. `DISCORD_GUILD_ID` is required only for guild deployment. `DATABASE_PATH` and `LOG_LEVEL` are optional. Zod validates configuration and startup fails before connecting when values are invalid.
+`DISCORD_TOKEN`, `DISCORD_CLIENT_ID`, and `REDIS_URL` are required. `REDIS_URL` must use `redis://` or `rediss://`. `DISCORD_GUILD_ID` is required only for guild deployment. `DATABASE_PATH` and `LOG_LEVEL` are optional. Zod validates configuration and startup fails before connecting when values are invalid. Startup also fails if Redis cannot be reached after bounded retries.
 
 Never commit `.env`, `.env.development`, tokens, or application secrets. Production values should be injected by the host or GitHub Secrets.
 
@@ -43,6 +58,7 @@ src/
   database/{entities,migrations,repositories}/
   events/
   handlers/
+  redis/
   services/
   types/
   utils/
@@ -59,6 +75,7 @@ tests/
 - Services and repositories declare concrete dependencies in their constructors and are auto-resolved. Adding a normal stateless service requires no change to `bootstrap.ts` or a central service interface.
 - `src/container` registers only infrastructure values, non-class tokens, and special lifetimes. The container is confined to bootstrap and loaders, preventing service-locator calls from application code.
 - Static command definitions can be deployed without constructing commands or initializing their runtime dependencies.
+- Command cooldowns use Redis atomic set-with-expiry operations, sharing cooldown state safely across bot replicas.
 - The TypeORM data source explicitly disables schema synchronization. Schema changes belong in migrations.
 
 ## Adding a slash command
@@ -142,7 +159,7 @@ TypeORM CLI commands load `.env.development` outside production and otherwise us
 
 ## Testing
 
-Commands are instantiated directly with mocked constructor dependencies and small mocked interactions; no websocket or DI container is necessary. Services use mocked repositories. Container tests verify automatic resolution and application-scoped lifetimes. Database tests use in-memory SQLite with real migrations. The offline bootstrap test exercises automatic command/event loading and graceful database shutdown.
+Commands are instantiated directly with mocked constructor dependencies and small mocked interactions; no websocket or DI container is necessary. Services use mocked repositories and Redis connections. Container tests verify automatic resolution and application-scoped lifetimes. Database tests use in-memory SQLite with real migrations. The offline bootstrap test injects a Redis double and exercises automatic loading plus graceful Redis/database shutdown.
 
 ## Production deployment
 
@@ -152,14 +169,16 @@ Create a protected GitHub environment named `production` with these secrets:
 
 - `DISCORD_TOKEN`
 - `DISCORD_CLIENT_ID`
+- `REDIS_URL`
 
-Configure the container host to pull the GHCR image and inject those values at runtime. Mount persistent storage at `/app/data`, or point `DATABASE_PATH` at another persistent mount. Startup applies migrations; SIGINT and SIGTERM close Discord and SQLite cleanly.
+Configure the container host to pull the GHCR image and inject those values at runtime. Mount persistent storage at `/app/data`, or point `DATABASE_PATH` at another persistent mount. Startup applies migrations; SIGINT and SIGTERM close Discord, Redis, and SQLite cleanly. The included Compose stack provides Redis and both named volumes for a single-host deployment.
 
 ```sh
 docker build -t discord-bot-template .
 docker run --rm \
   -e DISCORD_TOKEN \
   -e DISCORD_CLIENT_ID \
+  -e REDIS_URL \
   -v discord-bot-data:/app/data \
   discord-bot-template
 ```

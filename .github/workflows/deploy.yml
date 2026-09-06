@@ -34,6 +34,7 @@ jobs:
         env:
           DISCORD_TOKEN: ${{ secrets.DISCORD_TOKEN }}
           DISCORD_CLIENT_ID: ${{ secrets.DISCORD_CLIENT_ID }}
+          REDIS_URL: ${{ secrets.REDIS_URL }}
       - name: Log in to GitHub Container Registry
         uses: docker/login-action@v3
         with:
