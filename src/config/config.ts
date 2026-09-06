@@ -10,6 +10,11 @@ const rawConfigSchema = z.object({
   DISCORD_TOKEN: z.string().min(1, 'DISCORD_TOKEN is required'),
   DISCORD_CLIENT_ID: z.string().min(1, 'DISCORD_CLIENT_ID is required'),
   DISCORD_GUILD_ID: z.string().min(1).optional(),
+  REDIS_URL: z
+    .url('REDIS_URL must be a valid URL')
+    .refine((url) => url.startsWith('redis://') || url.startsWith('rediss://'), {
+      message: 'REDIS_URL must use the redis or rediss protocol',
+    }),
   DATABASE_PATH: z.string().min(1).optional(),
   LOG_LEVEL: z.enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace', 'silent']).optional(),
 });
@@ -25,6 +30,9 @@ export interface AppConfig {
   };
   readonly database: {
     readonly path: string;
+  };
+  readonly redis: {
+    readonly url: string;
   };
   readonly logging: {
     readonly level: NonNullable<z.infer<typeof rawConfigSchema>['LOG_LEVEL']>;
@@ -75,6 +83,7 @@ export function loadConfig(options: LoadConfigOptions = {}): AppConfig {
       ...(raw.DISCORD_GUILD_ID === undefined ? {} : { guildId: raw.DISCORD_GUILD_ID }),
     },
     database: { path: databasePath },
+    redis: { url: raw.REDIS_URL },
     logging: {
       level: raw.LOG_LEVEL ?? (raw.NODE_ENV === 'test' ? 'silent' : 'info'),
       pretty: raw.NODE_ENV === 'development',

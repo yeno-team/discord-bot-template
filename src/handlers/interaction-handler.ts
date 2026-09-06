@@ -65,7 +65,7 @@ export class InteractionHandler {
       }
 
       const cooldown = command.metadata.cooldownSeconds ?? 0;
-      const remaining = this.cooldowns.consume(
+      const remaining = await this.cooldowns.consume(
         `${interaction.commandName}:${interaction.user.id}`,
         cooldown,
       );

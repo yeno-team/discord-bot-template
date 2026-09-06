@@ -3,6 +3,7 @@ import { ConfigError, loadConfig } from '../../src/config';
 const requiredEnvironment = {
   DISCORD_TOKEN: 'test-token',
   DISCORD_CLIENT_ID: 'test-client-id',
+  REDIS_URL: 'redis://localhost:6379',
 };
 
 describe('loadConfig', () => {
@@ -27,7 +28,15 @@ describe('loadConfig', () => {
 
   it('reports all missing required values', () => {
     expect(() => loadConfig({ env: { NODE_ENV: 'test' } })).toThrow(
-      /DISCORD_TOKEN.*DISCORD_CLIENT_ID/s,
+      /DISCORD_TOKEN.*DISCORD_CLIENT_ID.*REDIS_URL/s,
     );
+  });
+
+  it('rejects non-Redis connection URLs', () => {
+    expect(() =>
+      loadConfig({
+        env: { ...requiredEnvironment, REDIS_URL: 'https://localhost:6379', NODE_ENV: 'test' },
+      }),
+    ).toThrow(/redis or rediss protocol/);
   });
 });

@@ -1,6 +1,5 @@
 export const TOKENS = {
   client: Symbol('client'),
-  clock: Symbol('clock'),
   commands: Symbol('commands'),
   config: Symbol('config'),
   logger: Symbol('logger'),

@@ -6,6 +6,7 @@ import {
 } from 'discord.js';
 
 import { InteractionHandler } from '../../src/handlers';
+import type { RedisConnection } from '../../src/redis';
 import { CooldownService } from '../../src/services';
 import type { SlashCommand } from '../../src/types';
 import type { AppLogger } from '../../src/utils/logger';
@@ -31,9 +32,14 @@ function createInteraction(overrides: { readonly guildId?: string | null } = {})
 }
 
 function createHandler(command: SlashCommand): InteractionHandler {
-  return new InteractionHandler(new Collection([['example', command]]), new CooldownService(), {
-    error: jest.fn(),
-  } as unknown as AppLogger);
+  const redis = {
+    acquireCooldown: jest.fn().mockResolvedValue(0),
+  } as unknown as RedisConnection;
+  return new InteractionHandler(
+    new Collection([['example', command]]),
+    new CooldownService(redis),
+    { error: jest.fn() } as unknown as AppLogger,
+  );
 }
 
 describe('handleInteraction', () => {

@@ -8,6 +8,7 @@ import { loadConfig, type AppConfig } from './config';
 import { createDependencyContainer, TOKENS } from './container';
 import { initializeDatabase } from './database';
 import { loadCommands, registerEvents } from './handlers';
+import { RedisConnection } from './redis';
 import type { AppContext } from './types';
 import { createLogger, type AppLogger } from './utils/logger';
 
@@ -22,6 +23,7 @@ export interface BootstrapOptions {
   readonly database?: DataSource;
   readonly logger?: AppLogger;
   readonly login?: boolean;
+  readonly redis?: RedisConnection;
 }
 
 export async function bootstrap(options: BootstrapOptions = {}): Promise<Application> {
@@ -30,6 +32,7 @@ export async function bootstrap(options: BootstrapOptions = {}): Promise<Applica
   const client = options.client ?? createDiscordClient();
   const database = options.database ?? (await initializeDatabase(config.database));
   let stopped = false;
+  let redis: RedisConnection | undefined;
 
   try {
     const migrations = await database.runMigrations();
@@ -40,7 +43,16 @@ export async function bootstrap(options: BootstrapOptions = {}): Promise<Applica
       );
     }
 
-    const container = createDependencyContainer({ client, config, database, logger });
+    const container = createDependencyContainer({
+      client,
+      config,
+      database,
+      logger,
+      ...(options.redis === undefined ? {} : { redis: options.redis }),
+    });
+    const connectedRedis = container.resolve(RedisConnection);
+    redis = connectedRedis;
+    await connectedRedis.connect();
     const commands = await loadCommands(path.join(__dirname, 'commands'), logger, container);
     container.register(TOKENS.commands, { useValue: commands });
     const context: AppContext = {
@@ -60,6 +72,7 @@ export async function bootstrap(options: BootstrapOptions = {}): Promise<Applica
         stopped = true;
         logger.info({ reason }, 'Shutting down');
         await client.destroy();
+        await connectedRedis.close();
         if (database.isInitialized) await database.destroy();
         logger.info('Shutdown complete');
       },
@@ -73,6 +86,7 @@ export async function bootstrap(options: BootstrapOptions = {}): Promise<Applica
     return application;
   } catch (error) {
     await client.destroy();
+    if (redis?.isOpen === true) await redis.close();
     if (database.isInitialized) await database.destroy();
     throw error;
   }

@@ -29,6 +29,7 @@
     "discord.js": "^14.27.0",
     "dotenv": "^17.2.2",
     "pino": "^9.9.5",
+    "redis": "^6.2.1",
     "reflect-metadata": "^0.2.2",
     "better-sqlite3": "^12.2.0",
     "tsyringe": "^4.10.0",

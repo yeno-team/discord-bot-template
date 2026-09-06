@@ -13,6 +13,7 @@ describe('dependency container', () => {
         NODE_ENV: 'test',
         DISCORD_TOKEN: 'test-token',
         DISCORD_CLIENT_ID: 'test-client-id',
+        REDIS_URL: 'redis://localhost:6379',
       },
     });
     const database = await createDataSource(':memory:').initialize();
