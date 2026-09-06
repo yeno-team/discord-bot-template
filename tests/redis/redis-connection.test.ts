@@ -7,8 +7,8 @@ import type { AppLogger } from '../../src/utils/logger';
 jest.mock('redis', () => ({ createClient: jest.fn() }));
 
 describe('RedisConnection', () => {
-  it('acquires cooldowns atomically and returns the existing TTL', async () => {
-    const set = jest.fn().mockResolvedValueOnce('OK').mockResolvedValueOnce(null);
+  it('provides generic atomic set and TTL operations', async () => {
+    const set = jest.fn().mockResolvedValue('OK');
     const pTTL = jest.fn().mockResolvedValue(3_501);
     const on = jest.fn();
     jest.mocked(createClient).mockReturnValue({ set, pTTL, on, isOpen: false } as never);
@@ -24,12 +24,12 @@ describe('RedisConnection', () => {
       error: jest.fn(),
     } as unknown as AppLogger);
 
-    await expect(connection.acquireCooldown('ping:user-1', 5_000)).resolves.toBe(0);
-    await expect(connection.acquireCooldown('ping:user-1', 5_000)).resolves.toBe(4);
-    expect(set).toHaveBeenCalledWith('cooldown:ping:user-1', '1', {
+    await expect(connection.setIfAbsent('key', 'value', 5_000)).resolves.toBe(true);
+    await expect(connection.getTtlMilliseconds('key')).resolves.toBe(3_501);
+    expect(set).toHaveBeenCalledWith('key', 'value', {
       NX: true,
       PX: 5_000,
     });
-    expect(pTTL).toHaveBeenCalledWith('cooldown:ping:user-1');
+    expect(pTTL).toHaveBeenCalledWith('key');
   });
 });

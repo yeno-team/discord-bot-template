@@ -40,15 +40,15 @@ export class RedisConnection {
     if (this.client.isOpen) await this.client.close();
   }
 
-  public async acquireCooldown(key: string, durationMilliseconds: number): Promise<number> {
-    const redisKey = `cooldown:${key}`;
-    const result = await this.client.set(redisKey, '1', {
+  public async setIfAbsent(key: string, value: string, ttlMilliseconds: number): Promise<boolean> {
+    const result = await this.client.set(key, value, {
       NX: true,
-      PX: durationMilliseconds,
+      PX: ttlMilliseconds,
     });
-    if (result === 'OK') return 0;
+    return result === 'OK';
+  }
 
-    const remainingMilliseconds = await this.client.pTTL(redisKey);
-    return remainingMilliseconds > 0 ? Math.ceil(remainingMilliseconds / 1000) : 0;
+  public getTtlMilliseconds(key: string): Promise<number> {
+    return this.client.pTTL(key);
   }
 }

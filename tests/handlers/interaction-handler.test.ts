@@ -33,7 +33,7 @@ function createInteraction(overrides: { readonly guildId?: string | null } = {})
 
 function createHandler(command: SlashCommand): InteractionHandler {
   const redis = {
-    acquireCooldown: jest.fn().mockResolvedValue(0),
+    setIfAbsent: jest.fn().mockResolvedValue(true),
   } as unknown as RedisConnection;
   return new InteractionHandler(
     new Collection([['example', command]]),
