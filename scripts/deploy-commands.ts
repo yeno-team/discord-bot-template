@@ -1,3 +1,5 @@
+import 'reflect-metadata';
+
 import path from 'node:path';
 
 import { REST, Routes } from 'discord.js';
