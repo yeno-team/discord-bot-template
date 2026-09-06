@@ -21,16 +21,16 @@
     "commands:deploy": "cross-env NODE_ENV=production tsx scripts/deploy-commands.ts",
     "commands:deploy:guild": "cross-env NODE_ENV=development tsx scripts/deploy-commands.ts --guild",
     "migration:create": "typeorm-ts-node-commonjs migration:create src/database/migrations/Migration",
-    "migration:generate": "typeorm-ts-node-commonjs migration:generate src/database/migrations/Migration -d src/database/data-source.ts",
-    "migration:run": "typeorm-ts-node-commonjs migration:run -d src/database/data-source.ts",
-    "migration:revert": "typeorm-ts-node-commonjs migration:revert -d src/database/data-source.ts"
+    "migration:generate": "typeorm-ts-node-commonjs migration:generate src/database/migrations/Migration -d src/database/cli-data-source.ts",
+    "migration:run": "typeorm-ts-node-commonjs migration:run -d src/database/cli-data-source.ts",
+    "migration:revert": "typeorm-ts-node-commonjs migration:revert -d src/database/cli-data-source.ts"
   },
   "dependencies": {
     "discord.js": "^14.27.0",
     "dotenv": "^17.2.2",
     "pino": "^9.9.5",
     "reflect-metadata": "^0.2.2",
-    "sqlite3": "^5.1.7",
+    "better-sqlite3": "^12.2.0",
     "typeorm": "^1.1.1",
     "zod": "^4.1.5"
   },
@@ -39,6 +39,7 @@
     "@swc/core": "^1.13.5",
     "@swc/jest": "^0.2.39",
     "@types/jest": "^30.0.0",
+    "@types/better-sqlite3": "^7.6.13",
     "@types/node": "^22.18.1",
     "cross-env": "^10.0.0",
     "eslint": "^9.35.0",
