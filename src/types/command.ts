@@ -4,8 +4,6 @@ import type {
   RESTPostAPIChatInputApplicationCommandsJSONBody,
 } from 'discord.js';
 
-import type { AppContext } from './context';
-
 export interface CommandMetadata {
   readonly category: string;
   readonly cooldownSeconds?: number;
@@ -15,11 +13,20 @@ export interface CommandMetadata {
   readonly requiredBotPermissions?: readonly PermissionResolvable[];
 }
 
-export interface SlashCommand {
+export interface CommandDefinition {
   readonly data: {
     readonly name: string;
     toJSON(): RESTPostAPIChatInputApplicationCommandsJSONBody;
   };
   readonly metadata: CommandMetadata;
-  execute(interaction: ChatInputCommandInteraction, context: AppContext): Promise<void>;
+}
+
+export interface CommandExecutor {
+  execute(interaction: ChatInputCommandInteraction): Promise<void>;
+}
+
+export type SlashCommand = CommandDefinition & CommandExecutor;
+
+export interface CommandConstructor extends CommandDefinition {
+  readonly prototype: CommandExecutor;
 }

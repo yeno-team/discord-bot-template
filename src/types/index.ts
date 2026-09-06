@@ -1,3 +1,9 @@
-export type { SlashCommand, CommandMetadata } from './command';
-export type { AppContext, AppRepositories, AppServices } from './context';
-export type { BotEvent } from './event';
+export type {
+  CommandConstructor,
+  CommandDefinition,
+  CommandExecutor,
+  CommandMetadata,
+  SlashCommand,
+} from './command';
+export type { AppContext } from './context';
+export type { BotEvent, BotEventConstructor } from './event';

@@ -1,10 +1,18 @@
-import { ChannelType, PermissionFlagsBits, SlashCommandBuilder } from 'discord.js';
+import {
+  ChannelType,
+  PermissionFlagsBits,
+  SlashCommandBuilder,
+  type ChatInputCommandInteraction,
+} from 'discord.js';
+import { injectable } from 'tsyringe';
 
-import type { SlashCommand } from '../../types';
+import { WelcomeSettingsService } from '../../services';
+import type { CommandExecutor, CommandMetadata } from '../../types';
 import { UserFacingError } from '../../utils/errors';
 
-const command: SlashCommand = {
-  data: new SlashCommandBuilder()
+@injectable()
+export default class SetWelcomeCommand implements CommandExecutor {
+  public static readonly data = new SlashCommandBuilder()
     .setName('set-welcome')
     .setDescription('Set the welcome channel for this server')
     .addChannelOption((option) =>
@@ -13,20 +21,22 @@ const command: SlashCommand = {
         .setDescription('The channel used for welcome messages')
         .addChannelTypes(ChannelType.GuildText)
         .setRequired(true),
-    ),
-  metadata: {
+    );
+
+  public static readonly metadata: CommandMetadata = {
     category: 'admin',
     guildOnly: true,
     enabled: true,
     requiredUserPermissions: [PermissionFlagsBits.ManageGuild],
     cooldownSeconds: 3,
-  },
-  async execute(interaction, context) {
+  };
+
+  public constructor(private readonly welcomeSettings: WelcomeSettingsService) {}
+
+  public async execute(interaction: ChatInputCommandInteraction): Promise<void> {
     if (interaction.guildId === null) throw new UserFacingError('This command requires a server.');
     const channel = interaction.options.getChannel('channel', true);
-    await context.services.welcomeSettings.setWelcomeChannel(interaction.guildId, channel.id);
+    await this.welcomeSettings.setWelcomeChannel(interaction.guildId, channel.id);
     await interaction.reply({ content: `Welcome channel set to <#${channel.id}>.` });
-  },
-};
-
-export default command;
+  }
+}

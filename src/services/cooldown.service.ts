@@ -1,9 +1,14 @@
+import { inject, injectable } from 'tsyringe';
+
+import { TOKENS } from '../container/tokens';
+
 export type Clock = () => number;
 
+@injectable()
 export class CooldownService {
   private readonly expirations = new Map<string, number>();
 
-  public constructor(private readonly now: Clock = Date.now) {}
+  public constructor(@inject(TOKENS.clock) private readonly now: Clock = Date.now) {}
 
   public consume(key: string, durationSeconds: number): number {
     const now = this.now();

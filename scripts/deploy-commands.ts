@@ -3,7 +3,7 @@ import path from 'node:path';
 import { REST, Routes } from 'discord.js';
 
 import { ConfigError, loadConfig } from '../src/config';
-import { loadCommands } from '../src/handlers';
+import { loadCommandDefinitions } from '../src/handlers';
 import { toError } from '../src/utils/errors';
 import { createLogger } from '../src/utils/logger';
 
@@ -16,7 +16,7 @@ async function deploy(): Promise<void> {
     throw new ConfigError(['DISCORD_GUILD_ID: required for guild command deployment']);
   }
 
-  const commands = await loadCommands(path.resolve(__dirname, '../src/commands'), logger);
+  const commands = await loadCommandDefinitions(path.resolve(__dirname, '../src/commands'), logger);
   const payload = commands
     .filter((command) => command.metadata.enabled !== false)
     .map((command) => command.data.toJSON());

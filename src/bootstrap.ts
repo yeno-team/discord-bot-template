@@ -5,9 +5,9 @@ import type { DataSource } from 'typeorm';
 
 import { createDiscordClient } from './client';
 import { loadConfig, type AppConfig } from './config';
-import { GuildSettingsEntity, GuildSettingsRepository, initializeDatabase } from './database';
+import { createDependencyContainer, TOKENS } from './container';
+import { initializeDatabase } from './database';
 import { loadCommands, registerEvents } from './handlers';
-import { CooldownService, HealthService, WelcomeSettingsService } from './services';
 import type { AppContext } from './types';
 import { createLogger, type AppLogger } from './utils/logger';
 
@@ -40,23 +40,18 @@ export async function bootstrap(options: BootstrapOptions = {}): Promise<Applica
       );
     }
 
-    const guildSettings = new GuildSettingsRepository(database.getRepository(GuildSettingsEntity));
-    const commands = await loadCommands(path.join(__dirname, 'commands'), logger);
+    const container = createDependencyContainer({ client, config, database, logger });
+    const commands = await loadCommands(path.join(__dirname, 'commands'), logger, container);
+    container.register(TOKENS.commands, { useValue: commands });
     const context: AppContext = {
       client,
       commands,
       config,
       database,
       logger,
-      repositories: { guildSettings },
-      services: {
-        cooldowns: new CooldownService(),
-        health: new HealthService(database),
-        welcomeSettings: new WelcomeSettingsService(guildSettings),
-      },
     };
 
-    await registerEvents(client, path.join(__dirname, 'events'), context);
+    await registerEvents(client, path.join(__dirname, 'events'), container, logger);
 
     const application: Application = {
       context,

@@ -1,13 +1,20 @@
 import type { Repository } from 'typeorm';
+import { DataSource } from 'typeorm';
+import { injectable } from 'tsyringe';
 
-import type { GuildSettingsEntity } from '../entities';
+import { GuildSettingsEntity } from '../entities';
 
 export interface GuildSettingsUpdate {
   readonly welcomeChannelId: string | null;
 }
 
+@injectable()
 export class GuildSettingsRepository {
-  public constructor(private readonly repository: Repository<GuildSettingsEntity>) {}
+  private readonly repository: Repository<GuildSettingsEntity>;
+
+  public constructor(database: DataSource) {
+    this.repository = database.getRepository(GuildSettingsEntity);
+  }
 
   public findByGuildId(guildId: string): Promise<GuildSettingsEntity | null> {
     return this.repository.findOneBy({ guildId });
