@@ -163,15 +163,22 @@ Commands are instantiated directly with mocked constructor dependencies and smal
 
 ## Production deployment
 
-CI checks formatting, linting, tests with coverage, and the production build. The deployment workflow runs manually or for a published GitHub Release. It repeats release checks, registers global commands, and publishes a non-root production image to GitHub Container Registry.
+CI checks formatting, linting, tests with coverage, and the production build. A successful `CI` run on `main` triggers the deployment workflow; it can also be started manually. The workflow builds the exact tested commit, publishes a non-root image to GitHub Container Registry, deploys it to an EC2 instance through AWS Systems Manager, waits for the Compose services, and then registers global slash commands.
 
 Create a protected GitHub environment named `production` with these secrets:
 
 - `DISCORD_TOKEN`
 - `DISCORD_CLIENT_ID`
-- `REDIS_URL`
+- `AWS_ACCESS_KEY_ID`
+- `AWS_SECRET_ACCESS_KEY`
+- `AWS_REGION`
+- `EC2_INSTANCE_ID`
+- `GHCR_USERNAME`
+- `GHCR_TOKEN` with permission to read the package
 
-Configure the container host to pull the GHCR image and inject those values at runtime. Mount persistent storage at `/app/data`, or point `DATABASE_PATH` at another persistent mount. Startup applies migrations; SIGINT and SIGTERM close Discord, Redis, and SQLite cleanly. The included Compose stack provides Redis and both named volumes for a single-host deployment.
+The EC2 instance must be registered with Systems Manager and have an instance profile containing `AmazonSSMManagedInstanceCore`. It needs outbound HTTPS access to AWS, GitHub Container Registry, and GitHub releases; no SSH ingress is required. The deployment supports Ubuntu/Debian and Amazon Linux-family hosts. It checks for Docker Engine and Docker Compose, installs missing components, enables Docker, and then deploys [compose.production.yaml](compose.production.yaml). Existing `bot-data` and `redis-data` volumes are preserved across releases.
+
+The deployment writes the runtime environment to `/opt/discord-bot/.env` with mode `0600`. Redis is reached on the private Compose network, so production does not require a separate `REDIS_URL` secret. Startup applies migrations; SIGINT and SIGTERM close Discord, Redis, and SQLite cleanly.
 
 ```sh
 docker build -t discord-bot-template .
