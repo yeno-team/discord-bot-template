@@ -20,8 +20,8 @@
     "format:check": "prettier --check .",
     "commands:deploy": "cross-env NODE_ENV=production tsx scripts/deploy-commands.ts",
     "commands:deploy:guild": "cross-env NODE_ENV=development tsx scripts/deploy-commands.ts --guild",
-    "migration:create": "typeorm-ts-node-commonjs migration:create src/database/migrations/Migration",
-    "migration:generate": "typeorm-ts-node-commonjs migration:generate src/database/migrations/Migration -d src/database/cli-data-source.ts",
+    "migration:create": "typeorm-ts-node-commonjs migration:create",
+    "migration:generate": "typeorm-ts-node-commonjs migration:generate -d src/database/cli-data-source.ts",
     "migration:run": "typeorm-ts-node-commonjs migration:run -d src/database/cli-data-source.ts",
     "migration:revert": "typeorm-ts-node-commonjs migration:revert -d src/database/cli-data-source.ts"
   },
