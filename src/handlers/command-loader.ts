@@ -23,7 +23,7 @@ export async function loadCommands(
   const commands = new Collection<string, SlashCommand>();
 
   for (const file of await findModuleFiles(directory)) {
-    const command = await loadDefaultExport<unknown>(file);
+    const command = loadDefaultExport(file);
     if (!isSlashCommand(command)) throw new Error(`Invalid slash command module: ${file}`);
     if (commands.has(command.data.name)) {
       throw new Error(`Duplicate slash command name: ${command.data.name}`);

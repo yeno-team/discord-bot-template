@@ -23,7 +23,7 @@ export async function registerEvents(
   context: AppContext,
 ): Promise<void> {
   for (const file of await findModuleFiles(directory)) {
-    const event = await loadDefaultExport<unknown>(file);
+    const event = loadDefaultExport(file);
     if (!isBotEvent(event)) throw new Error(`Invalid event module: ${file}`);
 
     const listener = (...args: unknown[]): void => {

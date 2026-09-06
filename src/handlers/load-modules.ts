@@ -1,6 +1,6 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
-import { pathToFileURL } from 'node:url';
+import { createRequire } from 'node:module';
 
 const loadableExtension = /\.(?:js|ts)$/u;
 const ignoredFile = /(?:\.d\.ts|\.test\.[jt]s|\.spec\.[jt]s)$/u;
@@ -20,8 +20,9 @@ export async function findModuleFiles(directory: string): Promise<string[]> {
   return files.flat().sort();
 }
 
-export async function loadDefaultExport<T>(file: string): Promise<T> {
-  const module = (await import(pathToFileURL(file).href)) as { default?: T };
+export function loadDefaultExport(file: string): unknown {
+  const requireModule = createRequire(__filename);
+  const module = requireModule(file) as { default?: unknown };
   if (module.default === undefined) {
     throw new Error(`Module does not have a default export: ${file}`);
   }
