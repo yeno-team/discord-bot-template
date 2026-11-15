@@ -46,7 +46,7 @@ npm run dev
 | Test        | Explicit values with injected Redis doubles          | `:memory:`          | Not used           |
 | Production  | `process.env` only                                   | `./data/bot.sqlite` | Global             |
 
-`DISCORD_TOKEN`, `DISCORD_CLIENT_ID`, and `REDIS_URL` are required. `REDIS_URL` must use `redis://` or `rediss://`. `DISCORD_GUILD_ID` is required only for guild deployment. `DATABASE_PATH`, `LOG_LEVEL`, and `HEALTHCHECK_FILE` are optional. Zod validates configuration and startup fails before connecting when values are invalid. Startup also fails if Redis cannot be reached after bounded retries.
+`DISCORD_TOKEN`, `DISCORD_CLIENT_ID`, and `REDIS_URL` are required. `REDIS_URL` must use `redis://` or `rediss://`. `DISCORD_GUILD_ID` is required only for guild deployment. `DATABASE_PATH`, `LOG_LEVEL`, and `HEALTHCHECK_FILE` are optional. Zod validates configuration and startup fails before connecting when values are invalid. Startup fails if Redis cannot be reached after bounded retries. After the first connection, the bot keeps reconnecting with capped backoff; commands that need Redis fail immediately with an error reply during an outage and work again once Redis returns, without restarting the bot.
 
 Never commit `.env`, `.env.development`, tokens, or application secrets. Production values should be injected by the host or GitHub Secrets.
 
