@@ -5,9 +5,24 @@ import type { AppConfig } from '../config';
 import { TOKENS } from '../container/tokens';
 import type { AppLogger } from '../utils/logger';
 
+const INITIAL_CONNECT_ATTEMPTS = 5;
+const MAX_RECONNECT_DELAY_MILLISECONDS = 2_000;
+
+/**
+ * Startup gives up after a few attempts so a missing Redis fails fast. Once connected,
+ * the client keeps retrying forever so a Redis restart cannot leave the bot permanently broken.
+ */
+export function getReconnectDelay(retries: number, hasConnected: boolean): number | Error {
+  if (!hasConnected && retries >= INITIAL_CONNECT_ATTEMPTS) {
+    return new Error('Redis connection could not be established');
+  }
+  return Math.min(100 * 2 ** retries, MAX_RECONNECT_DELAY_MILLISECONDS);
+}
+
 @injectable()
 export class RedisConnection {
   private readonly client: RedisClientType;
+  private hasConnected = false;
 
   public constructor(
     @inject(TOKENS.config) config: AppConfig,
@@ -15,13 +30,16 @@ export class RedisConnection {
   ) {
     this.client = createClient({
       url: config.redis.url,
+      // Reject commands while reconnecting so interactions get an error reply
+      // instead of waiting past Discord's three-second response window.
+      disableOfflineQueue: true,
       socket: {
         connectTimeout: 10_000,
-        reconnectStrategy: (retries) => {
-          if (retries >= 5) return new Error('Redis reconnect limit reached');
-          return Math.min(100 * 2 ** retries, 2_000);
-        },
+        reconnectStrategy: (retries) => getReconnectDelay(retries, this.hasConnected),
       },
+    });
+    this.client.on('ready', () => {
+      this.hasConnected = true;
     });
     this.client.on('error', (error: Error) => {
       logger.error({ err: error }, 'Redis client error');
@@ -30,6 +48,10 @@ export class RedisConnection {
 
   public get isOpen(): boolean {
     return this.client.isOpen;
+  }
+
+  public get isReady(): boolean {
+    return this.client.isReady;
   }
 
   public async connect(): Promise<void> {

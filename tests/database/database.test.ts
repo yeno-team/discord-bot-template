@@ -22,6 +22,12 @@ describe('database layer', () => {
     expect(dataSource.entityMetadatas).toHaveLength(1);
   });
 
+  it('keeps entities in sync with the migrated schema', async () => {
+    const pending = await dataSource.driver.createSchemaBuilder().log();
+
+    expect(pending.upQueries.map(({ query }) => query)).toEqual([]);
+  });
+
   it('stores and updates guild settings through the repository', async () => {
     const repository = new GuildSettingsRepository(dataSource);
 
