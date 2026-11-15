@@ -1,8 +1,7 @@
-import { Collection, MessageFlags, type Interaction, type PermissionsBitField } from 'discord.js';
-import { inject, injectable } from 'tsyringe';
+import type { Collection } from 'discord.js';
+import { MessageFlags, type Interaction, type PermissionsBitField } from 'discord.js';
 
-import { TOKENS } from '../container';
-import { CooldownService } from '../services';
+import type { CooldownService } from '../services';
 import type { SlashCommand } from '../types';
 import type { AppLogger } from '../utils/logger';
 import { handleInteractionError } from './error-handler';
@@ -14,13 +13,11 @@ function hasPermissions(
   return required === undefined || actual?.has(required) === true;
 }
 
-@injectable()
 export class InteractionHandler {
   public constructor(
-    @inject(TOKENS.commands)
     private readonly commands: Collection<string, SlashCommand>,
     private readonly cooldowns: CooldownService,
-    @inject(TOKENS.logger) private readonly logger: AppLogger,
+    private readonly logger: AppLogger,
   ) {}
 
   public async handle(interaction: Interaction): Promise<void> {

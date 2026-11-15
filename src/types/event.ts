@@ -5,7 +5,3 @@ export interface BotEvent<K extends keyof ClientEvents = keyof ClientEvents> {
   readonly once?: boolean;
   execute(...args: ClientEvents[K]): Promise<void> | void;
 }
-
-export interface BotEventConstructor {
-  readonly prototype: BotEvent;
-}

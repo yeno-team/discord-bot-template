@@ -1,10 +1,8 @@
 import { Events } from 'discord.js';
-import { injectable } from 'tsyringe';
 
-import { InteractionHandler } from '../handlers';
+import type { InteractionHandler } from '../handlers';
 import type { BotEvent } from '../types';
 
-@injectable()
 export default class InteractionCreateEvent implements BotEvent<Events.InteractionCreate> {
   public readonly name = Events.InteractionCreate;
 
