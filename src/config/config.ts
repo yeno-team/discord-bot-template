@@ -16,6 +16,7 @@ const rawConfigSchema = z.object({
       message: 'REDIS_URL must use the redis or rediss protocol',
     }),
   DATABASE_PATH: z.string().min(1).optional(),
+  HEALTHCHECK_FILE: z.string().min(1).optional(),
   LOG_LEVEL: z.enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace', 'silent']).optional(),
 });
 
@@ -33,6 +34,9 @@ export interface AppConfig {
   };
   readonly redis: {
     readonly url: string;
+  };
+  readonly health: {
+    readonly file?: string;
   };
   readonly logging: {
     readonly level: NonNullable<z.infer<typeof rawConfigSchema>['LOG_LEVEL']>;
@@ -84,6 +88,7 @@ export function loadConfig(options: LoadConfigOptions = {}): AppConfig {
     },
     database: { path: databasePath },
     redis: { url: raw.REDIS_URL },
+    health: raw.HEALTHCHECK_FILE === undefined ? {} : { file: raw.HEALTHCHECK_FILE },
     logging: {
       level: raw.LOG_LEVEL ?? (raw.NODE_ENV === 'test' ? 'silent' : 'info'),
       pretty: raw.NODE_ENV === 'development',

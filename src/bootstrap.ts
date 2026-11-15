@@ -9,6 +9,7 @@ import { createDependencyContainer, TOKENS } from './container';
 import { initializeDatabase } from './database';
 import { loadCommands, registerEvents } from './handlers';
 import { RedisConnection } from './redis';
+import { HealthHeartbeatService } from './services';
 import type { AppContext } from './types';
 import { createLogger, type AppLogger } from './utils/logger';
 
@@ -64,6 +65,7 @@ export async function bootstrap(options: BootstrapOptions = {}): Promise<Applica
     };
 
     await registerEvents(client, path.join(__dirname, 'events'), container, logger);
+    const heartbeat = container.resolve(HealthHeartbeatService);
 
     const application: Application = {
       context,
@@ -71,6 +73,7 @@ export async function bootstrap(options: BootstrapOptions = {}): Promise<Applica
         if (stopped) return;
         stopped = true;
         logger.info({ reason }, 'Shutting down');
+        await heartbeat.stop();
         await client.destroy();
         await connectedRedis.close();
         if (database.isInitialized) await database.destroy();
@@ -82,6 +85,7 @@ export async function bootstrap(options: BootstrapOptions = {}): Promise<Applica
       logger.info({ environment: config.env }, 'Starting Discord client');
       await client.login(config.discord.token);
     }
+    heartbeat.start();
 
     return application;
   } catch (error) {

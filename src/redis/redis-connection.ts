@@ -50,6 +50,10 @@ export class RedisConnection {
     return this.client.isOpen;
   }
 
+  public get isReady(): boolean {
+    return this.client.isReady;
+  }
+
   public async connect(): Promise<void> {
     if (!this.client.isOpen) await this.client.connect();
   }
