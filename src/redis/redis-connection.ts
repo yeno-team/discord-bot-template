@@ -30,6 +30,9 @@ export class RedisConnection {
   ) {
     this.client = createClient({
       url: config.redis.url,
+      // Reject commands while reconnecting so interactions get an error reply
+      // instead of waiting past Discord's three-second response window.
+      disableOfflineQueue: true,
       socket: {
         connectTimeout: 10_000,
         reconnectStrategy: (retries) => getReconnectDelay(retries, this.hasConnected),
