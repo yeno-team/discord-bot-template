@@ -8,9 +8,9 @@ export class GuildSettingsEntity {
   @Column({ name: 'welcome_channel_id', type: 'text', nullable: true })
   public welcomeChannelId!: string | null;
 
-  @CreateDateColumn({ name: 'created_at', type: 'datetime' })
+  @CreateDateColumn({ name: 'created_at', type: 'datetime', default: () => 'CURRENT_TIMESTAMP' })
   public createdAt!: Date;
 
-  @UpdateDateColumn({ name: 'updated_at', type: 'datetime' })
+  @UpdateDateColumn({ name: 'updated_at', type: 'datetime', default: () => 'CURRENT_TIMESTAMP' })
   public updatedAt!: Date;
 }
