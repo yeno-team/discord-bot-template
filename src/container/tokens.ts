@@ -3,5 +3,4 @@ export const TOKENS = {
   commands: Symbol('commands'),
   config: Symbol('config'),
   logger: Symbol('logger'),
-  uptime: Symbol('uptime'),
 } as const;

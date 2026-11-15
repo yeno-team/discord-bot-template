@@ -1,8 +1,5 @@
-import { injectable } from 'tsyringe';
+import type { RedisConnection } from '../redis';
 
-import { RedisConnection } from '../redis';
-
-@injectable()
 export class CooldownService {
   public constructor(private readonly redis: RedisConnection) {}
 

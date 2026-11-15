@@ -3,13 +3,13 @@ import path from 'node:path';
 import type { Client } from 'discord.js';
 import type { DataSource } from 'typeorm';
 
+import { createServices } from './app';
 import { createDiscordClient } from './client';
 import { loadConfig, type AppConfig } from './config';
 import { createDependencyContainer, TOKENS } from './container';
 import { initializeDatabase } from './database';
 import { loadCommands, registerEvents } from './handlers';
-import { RedisConnection } from './redis';
-import { HealthHeartbeatService } from './services';
+import type { RedisConnection } from './redis';
 import type { AppContext } from './types';
 import { createLogger, type AppLogger } from './utils/logger';
 
@@ -44,14 +44,15 @@ export async function bootstrap(options: BootstrapOptions = {}): Promise<Applica
       );
     }
 
-    const container = createDependencyContainer({
+    const services = createServices({
       client,
       config,
       database,
       logger,
       ...(options.redis === undefined ? {} : { redis: options.redis }),
     });
-    const connectedRedis = container.resolve(RedisConnection);
+    const container = createDependencyContainer({ client, config, logger, services });
+    const connectedRedis = services.redis;
     redis = connectedRedis;
     await connectedRedis.connect();
     const commands = await loadCommands(path.join(__dirname, 'commands'), logger, container);
@@ -65,7 +66,7 @@ export async function bootstrap(options: BootstrapOptions = {}): Promise<Applica
     };
 
     await registerEvents(client, path.join(__dirname, 'events'), container, logger);
-    const heartbeat = container.resolve(HealthHeartbeatService);
+    const { heartbeat } = services;
 
     const application: Application = {
       context,

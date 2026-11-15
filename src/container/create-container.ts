@@ -4,20 +4,24 @@ import {
   type DependencyContainer,
   type InjectionToken,
 } from 'tsyringe';
-import { DataSource } from 'typeorm';
 
+import type { AppServices } from '../app';
 import type { AppConfig } from '../config';
 import { RedisConnection } from '../redis';
-import { CooldownService } from '../services';
+import {
+  CooldownService,
+  HealthHeartbeatService,
+  HealthService,
+  WelcomeSettingsService,
+} from '../services';
 import type { AppLogger } from '../utils/logger';
 import { TOKENS } from './tokens';
 
 export interface ContainerDependencies {
   readonly client: Client;
   readonly config: AppConfig;
-  readonly database: DataSource;
   readonly logger: AppLogger;
-  readonly redis?: RedisConnection;
+  readonly services: AppServices;
 }
 
 function registerValue<T>(
@@ -32,15 +36,16 @@ export function createDependencyContainer(
   dependencies: ContainerDependencies,
 ): DependencyContainer {
   const container = rootContainer.createChildContainer();
+  const { services } = dependencies;
 
   registerValue(container, TOKENS.client, dependencies.client);
   registerValue(container, TOKENS.config, dependencies.config);
   registerValue(container, TOKENS.logger, dependencies.logger);
-  registerValue(container, TOKENS.uptime, () => process.uptime());
-  registerValue(container, DataSource, dependencies.database);
-  if (dependencies.redis === undefined) container.registerSingleton(RedisConnection);
-  else registerValue(container, RedisConnection, dependencies.redis);
-  container.registerSingleton(CooldownService);
+  registerValue(container, RedisConnection, services.redis);
+  registerValue(container, CooldownService, services.cooldowns);
+  registerValue(container, HealthService, services.health);
+  registerValue(container, HealthHeartbeatService, services.heartbeat);
+  registerValue(container, WelcomeSettingsService, services.welcomeSettings);
 
   return container;
 }
