@@ -4,13 +4,11 @@ import {
   SlashCommandBuilder,
   type ChatInputCommandInteraction,
 } from 'discord.js';
-import { injectable } from 'tsyringe';
 
-import { WelcomeSettingsService } from '../../services';
+import type { WelcomeSettingsService } from '../../services';
 import type { CommandExecutor, CommandMetadata } from '../../types';
 import { UserFacingError } from '../../utils/errors';
 
-@injectable()
 export default class SetWelcomeCommand implements CommandExecutor {
   public static readonly data = new SlashCommandBuilder()
     .setName('set-welcome')

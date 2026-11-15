@@ -1,9 +1,9 @@
 export type {
-  CommandConstructor,
+  CommandClass,
   CommandDefinition,
   CommandExecutor,
   CommandMetadata,
   SlashCommand,
 } from './command';
 export type { AppContext } from './context';
-export type { BotEvent, BotEventConstructor } from './event';
+export type { BotEvent } from './event';

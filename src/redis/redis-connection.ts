@@ -1,8 +1,6 @@
 import { createClient, type RedisClientType } from 'redis';
-import { inject, injectable } from 'tsyringe';
 
 import type { AppConfig } from '../config';
-import { TOKENS } from '../container/tokens';
 import type { AppLogger } from '../utils/logger';
 
 const INITIAL_CONNECT_ATTEMPTS = 5;
@@ -19,15 +17,11 @@ export function getReconnectDelay(retries: number, hasConnected: boolean): numbe
   return Math.min(100 * 2 ** retries, MAX_RECONNECT_DELAY_MILLISECONDS);
 }
 
-@injectable()
 export class RedisConnection {
   private readonly client: RedisClientType;
   private hasConnected = false;
 
-  public constructor(
-    @inject(TOKENS.config) config: AppConfig,
-    @inject(TOKENS.logger) logger: AppLogger,
-  ) {
+  public constructor(config: AppConfig, logger: AppLogger) {
     this.client = createClient({
       url: config.redis.url,
       // Reject commands while reconnecting so interactions get an error reply

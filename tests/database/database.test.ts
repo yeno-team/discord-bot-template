@@ -1,5 +1,3 @@
-import 'reflect-metadata';
-
 import type { DataSource } from 'typeorm';
 
 import { createDataSource, GuildSettingsRepository } from '../../src/database';

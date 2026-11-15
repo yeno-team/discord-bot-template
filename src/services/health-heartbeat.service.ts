@@ -1,11 +1,9 @@
 import { rm, writeFile } from 'node:fs/promises';
 
 import type { Client } from 'discord.js';
-import { inject, injectable } from 'tsyringe';
 
 import type { AppConfig } from '../config';
-import { TOKENS } from '../container/tokens';
-import { RedisConnection } from '../redis';
+import type { RedisConnection } from '../redis';
 import type { AppLogger } from '../utils/logger';
 
 export const HEARTBEAT_INTERVAL_MILLISECONDS = 10_000;
@@ -15,15 +13,14 @@ export const HEARTBEAT_INTERVAL_MILLISECONDS = 10_000;
  * treats a stale or missing file as unhealthy, so a bot that cannot log in never
  * passes `docker compose up --wait`.
  */
-@injectable()
 export class HealthHeartbeatService {
   private timer: NodeJS.Timeout | undefined;
 
   public constructor(
-    @inject(TOKENS.config) private readonly config: AppConfig,
-    @inject(TOKENS.client) private readonly client: Client,
+    private readonly config: AppConfig,
+    private readonly client: Client,
     private readonly redis: RedisConnection,
-    @inject(TOKENS.logger) private readonly logger: AppLogger,
+    private readonly logger: AppLogger,
   ) {}
 
   public start(): void {

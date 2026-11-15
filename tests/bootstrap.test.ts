@@ -1,5 +1,3 @@
-import 'reflect-metadata';
-
 import { Client } from 'discord.js';
 
 import { bootstrap } from '../src/bootstrap';

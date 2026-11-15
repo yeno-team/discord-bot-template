@@ -1,15 +1,14 @@
-import path from 'node:path';
-
 import type { Client } from 'discord.js';
 import type { DataSource } from 'typeorm';
 
+import { createServices } from './app';
 import { createDiscordClient } from './client';
+import { createCommands } from './commands';
 import { loadConfig, type AppConfig } from './config';
-import { createDependencyContainer, TOKENS } from './container';
 import { initializeDatabase } from './database';
-import { loadCommands, registerEvents } from './handlers';
-import { RedisConnection } from './redis';
-import { HealthHeartbeatService } from './services';
+import { createEvents } from './events';
+import { InteractionHandler, registerEvents, toCommandCollection } from './handlers';
+import type { RedisConnection } from './redis';
 import type { AppContext } from './types';
 import { createLogger, type AppLogger } from './utils/logger';
 
@@ -44,18 +43,17 @@ export async function bootstrap(options: BootstrapOptions = {}): Promise<Applica
       );
     }
 
-    const container = createDependencyContainer({
+    const services = createServices({
       client,
       config,
       database,
       logger,
       ...(options.redis === undefined ? {} : { redis: options.redis }),
     });
-    const connectedRedis = container.resolve(RedisConnection);
+    const connectedRedis = services.redis;
     redis = connectedRedis;
     await connectedRedis.connect();
-    const commands = await loadCommands(path.join(__dirname, 'commands'), logger, container);
-    container.register(TOKENS.commands, { useValue: commands });
+    const commands = toCommandCollection(createCommands(services));
     const context: AppContext = {
       client,
       commands,
@@ -64,8 +62,9 @@ export async function bootstrap(options: BootstrapOptions = {}): Promise<Applica
       logger,
     };
 
-    await registerEvents(client, path.join(__dirname, 'events'), container, logger);
-    const heartbeat = container.resolve(HealthHeartbeatService);
+    const interactions = new InteractionHandler(commands, services.cooldowns, logger);
+    registerEvents(client, createEvents({ interactions, logger }), logger);
+    const { heartbeat } = services;
 
     const application: Application = {
       context,

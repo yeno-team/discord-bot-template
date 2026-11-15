@@ -1,8 +1,6 @@
-import { injectable } from 'tsyringe';
+import type { GuildSettingsRepository } from '../database';
+import { type GuildSettingsEntity } from '../database';
 
-import { GuildSettingsRepository, type GuildSettingsEntity } from '../database';
-
-@injectable()
 export class WelcomeSettingsService {
   public constructor(private readonly settings: GuildSettingsRepository) {}
 

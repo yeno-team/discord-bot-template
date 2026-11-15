@@ -6,7 +6,6 @@ const config = {
   coverageProvider: 'v8',
   moduleFileExtensions: ['ts', 'js', 'json'],
   roots: ['<rootDir>/tests'],
-  setupFiles: ['reflect-metadata'],
   testEnvironment: 'node',
   transform: {
     '^.+\\.ts$': [
@@ -14,7 +13,7 @@ const config = {
       {
         jsc: {
           parser: { syntax: 'typescript', decorators: true },
-          transform: { legacyDecorator: true, decoratorMetadata: true },
+          transform: { legacyDecorator: true, decoratorMetadata: false },
           target: 'es2022',
         },
         module: { type: 'commonjs' },

@@ -1,6 +1,5 @@
 import type { Repository } from 'typeorm';
-import { DataSource } from 'typeorm';
-import { injectable } from 'tsyringe';
+import type { DataSource } from 'typeorm';
 
 import { GuildSettingsEntity } from '../entities';
 
@@ -8,7 +7,6 @@ export interface GuildSettingsUpdate {
   readonly welcomeChannelId: string | null;
 }
 
-@injectable()
 export class GuildSettingsRepository {
   private readonly repository: Repository<GuildSettingsEntity>;
 
