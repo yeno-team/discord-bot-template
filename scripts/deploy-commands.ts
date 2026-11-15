@@ -1,5 +1,3 @@
-import 'reflect-metadata';
-
 import { REST, Routes } from 'discord.js';
 
 import { ConfigError, loadConfig } from '../src/config';

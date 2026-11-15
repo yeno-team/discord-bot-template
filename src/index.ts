@@ -1,5 +1,3 @@
-import 'reflect-metadata';
-
 import { bootstrap, type Application } from './bootstrap';
 import { ConfigError } from './config';
 import { toError } from './utils/errors';
