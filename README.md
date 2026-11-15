@@ -1,6 +1,6 @@
 # Discord Bot TypeScript Template
 
-A production-oriented Discord bot starter using TypeScript, `discord.js`, TypeORM, SQLite, Jest, and dependency injection through a small application context. It supports slash commands only and contains no project-specific behavior beyond two replaceable examples.
+A production-oriented Discord bot starter using TypeScript, `discord.js`, TypeORM, SQLite, Jest, and plain constructor injection wired in one composition root. It supports slash commands only and contains no project-specific behavior beyond two replaceable examples.
 
 Use GitHub's **Use this template** button or clone the repository, then rename the package and replace the example commands with your bot's features. Deployment is opt-in and cannot run from the untouched template.
 
@@ -54,9 +54,9 @@ Never commit `.env`, `.env.development`, tokens, or application secrets. Product
 
 ```text
 src/
+  app/
   commands/{admin,general}/
   config/
-  container/
   database/{entities,migrations,repositories}/
   events/
   handlers/
@@ -73,17 +73,17 @@ tests/
 .github/workflows/
 ```
 
-- Commands are injectable classes with static Discord definitions. They validate Discord-specific input, call an injected service, and format the response.
-- Handlers and events are injectable classes. The loaders resolve them through an application-scoped TSyringe child container.
-- Services and repositories declare concrete dependencies in their constructors and are auto-resolved. Adding a normal stateless service requires no change to `bootstrap.ts` or a central service interface.
-- `src/container` registers only infrastructure values, non-class tokens, and special lifetimes. The container is confined to bootstrap and loaders, preventing service-locator calls from application code.
+- Commands are classes with static Discord definitions. They validate Discord-specific input, call a service passed to their constructor, and format the response.
+- Services, repositories, handlers, and events receive their dependencies through their constructors. Nothing looks dependencies up at runtime.
+- `src/app/create-services.ts` is the composition root. It creates every long-lived object exactly once with `new`, so the TypeScript compiler checks that each class receives the dependencies it needs.
+- `src/commands/index.ts` and `src/events/index.ts` list every command and event explicitly. There is no directory scanning, decorator metadata, or DI container, so the bot runs the same way under `tsx`, `tsc`, and Jest.
 - Static command definitions can be deployed without constructing commands or initializing their runtime dependencies.
 - Command cooldowns use Redis atomic set-with-expiry operations, sharing cooldown state safely across bot replicas.
 - The TypeORM data source explicitly disables schema synchronization. Schema changes belong in migrations.
 
 ## Adding a slash command
 
-Create a default-exported injectable command class under a category in `src/commands/`. The recursive loader finds and resolves it automatically:
+Create a default-exported command class under a category in `src/commands/`:
 
 ```ts
 import {
@@ -91,11 +91,9 @@ import {
   SlashCommandBuilder,
   type ChatInputCommandInteraction,
 } from 'discord.js';
-import { injectable } from 'tsyringe';
-import { ExampleService } from '../../services/example.service';
+import type { ExampleService } from '../../services/example.service';
 import type { CommandExecutor, CommandMetadata } from '../../types';
 
-@injectable()
 export default class ExampleCommand implements CommandExecutor {
   static readonly data = new SlashCommandBuilder()
     .setName('example')
@@ -118,20 +116,50 @@ export default class ExampleCommand implements CommandExecutor {
 }
 ```
 
+Then add it to both lists in `src/commands/index.ts`. A test fails if the two lists disagree, and the compiler rejects missing or wrong constructor arguments:
+
+```ts
+export const commandDefinitions: readonly CommandDefinition[] = [
+  PingCommand,
+  SetWelcomeCommand,
+  ExampleCommand,
+];
+
+export function createCommands(services: AppServices): SlashCommand[] {
+  return [
+    createCommand(PingCommand, services.health),
+    createCommand(SetWelcomeCommand, services.welcomeSettings),
+    createCommand(ExampleCommand, services.examples),
+  ];
+}
+```
+
 Run `npm run commands:deploy:guild` after definition changes in development. Reserve `npm run commands:deploy` for production because global propagation can take longer.
 
 ## Adding dependencies
 
-Decorate concrete services and repositories with `@injectable()` and declare their dependencies in the constructor. TSyringe can resolve concrete classes without adding them to a central list:
+Declare a service's dependencies in its constructor:
 
 ```ts
-@injectable()
 export class ExampleService {
   constructor(private readonly settings: GuildSettingsRepository) {}
 }
 ```
 
-Add a container registration only when a dependency is an interface, configuration value, factory function, existing external instance, or requires a non-transient lifetime. Use a symbol in `src/container/tokens.ts` for interface and value tokens. Do not import or resolve the container from commands, services, repositories, or events.
+Then create it once in `src/app/create-services.ts` and add it to `AppServices`:
+
+```ts
+const guildSettings = new GuildSettingsRepository(database);
+
+return {
+  // ...existing services
+  examples: new ExampleService(guildSettings),
+};
+```
+
+Interfaces, configuration values, and factory functions are passed the same way; no tokens or registrations are needed. Commands, services, and events should receive what they need through their constructors rather than importing shared instances.
+
+TypeORM entities still use decorators, but the project does not emit decorator type metadata. Always give entity columns an explicit `type`, as the included entity does.
 
 ## Database migrations
 
@@ -163,7 +191,7 @@ TypeORM CLI commands load `.env.development` outside production and otherwise us
 
 ## Testing
 
-Commands are instantiated directly with mocked constructor dependencies and small mocked interactions; no websocket or DI container is necessary. Services use mocked repositories and Redis connections. Container tests verify automatic resolution and application-scoped lifetimes. Database tests use in-memory SQLite with real migrations. The offline bootstrap test injects a Redis double and exercises automatic loading plus graceful Redis/database shutdown.
+Commands are instantiated directly with mocked constructor dependencies and small mocked interactions; no websocket is necessary. Services use mocked repositories and Redis connections. Composition root tests check that every deployed command definition is created and that services share one Redis connection. Database tests use in-memory SQLite with real migrations. The offline bootstrap test injects a Redis double and exercises command and event registration plus graceful Redis/database shutdown.
 
 ## Production deployment
 
