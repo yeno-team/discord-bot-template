@@ -1,10 +1,8 @@
 import { SlashCommandBuilder, type ChatInputCommandInteraction } from 'discord.js';
-import { injectable } from 'tsyringe';
 
-import { HealthService } from '../../services';
+import type { HealthService } from '../../services';
 import type { CommandExecutor, CommandMetadata } from '../../types';
 
-@injectable()
 export default class PingCommand implements CommandExecutor {
   public static readonly data = new SlashCommandBuilder()
     .setName('ping')

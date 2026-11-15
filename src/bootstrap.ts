@@ -5,10 +5,11 @@ import type { DataSource } from 'typeorm';
 
 import { createServices } from './app';
 import { createDiscordClient } from './client';
+import { createCommands } from './commands';
 import { loadConfig, type AppConfig } from './config';
 import { createDependencyContainer, TOKENS } from './container';
 import { initializeDatabase } from './database';
-import { loadCommands, registerEvents } from './handlers';
+import { registerEvents, toCommandCollection } from './handlers';
 import type { RedisConnection } from './redis';
 import type { AppContext } from './types';
 import { createLogger, type AppLogger } from './utils/logger';
@@ -55,7 +56,7 @@ export async function bootstrap(options: BootstrapOptions = {}): Promise<Applica
     const connectedRedis = services.redis;
     redis = connectedRedis;
     await connectedRedis.connect();
-    const commands = await loadCommands(path.join(__dirname, 'commands'), logger, container);
+    const commands = toCommandCollection(createCommands(services));
     container.register(TOKENS.commands, { useValue: commands });
     const context: AppContext = {
       client,

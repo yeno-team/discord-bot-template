@@ -1,11 +1,9 @@
 import 'reflect-metadata';
 
-import path from 'node:path';
-
 import { REST, Routes } from 'discord.js';
 
 import { ConfigError, loadConfig } from '../src/config';
-import { loadCommandDefinitions } from '../src/handlers';
+import { commandDefinitions } from '../src/commands';
 import { toError } from '../src/utils/errors';
 import { createLogger } from '../src/utils/logger';
 
@@ -18,8 +16,7 @@ async function deploy(): Promise<void> {
     throw new ConfigError(['DISCORD_GUILD_ID: required for guild command deployment']);
   }
 
-  const commands = await loadCommandDefinitions(path.resolve(__dirname, '../src/commands'), logger);
-  const payload = commands
+  const payload = commandDefinitions
     .filter((command) => command.metadata.enabled !== false)
     .map((command) => command.data.toJSON());
   const guildId = config.discord.guildId;

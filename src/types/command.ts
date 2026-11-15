@@ -27,6 +27,6 @@ export interface CommandExecutor {
 
 export type SlashCommand = CommandDefinition & CommandExecutor;
 
-export interface CommandConstructor extends CommandDefinition {
-  readonly prototype: CommandExecutor;
-}
+/** A command class: static Discord definition plus a constructor taking its dependencies. */
+export type CommandClass<TArgs extends unknown[]> = CommandDefinition &
+  (new (...args: TArgs) => CommandExecutor);

@@ -1,5 +1,5 @@
 export type {
-  CommandConstructor,
+  CommandClass,
   CommandDefinition,
   CommandExecutor,
   CommandMetadata,
