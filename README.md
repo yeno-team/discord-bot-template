@@ -175,7 +175,7 @@ After creating a separate bot repository from this template:
 2. Create a protected GitHub environment named `production` and add the secrets listed below. Environment approval rules are recommended.
 3. Add a repository Actions variable named `DEPLOYMENT_ENABLED` with the value `true`.
 4. Run `npm run deployment:enable`. Review and commit the generated `.github/workflows/deploy.yml` in the bot repository.
-5. Push to `main`. A successful `CI` run will deploy that tested commit. The workflow can also be run manually from GitHub Actions.
+5. Push to `main`. A successful `CI` run for that push will deploy the tested commit. CI runs for pull requests, including forks with a branch named `main`, never deploy. The workflow can also be run manually from GitHub Actions.
 
 The variable check is a second opt-in guard: even a copied workflow will skip deployment until `DEPLOYMENT_ENABLED` is explicitly set to `true`. To disable future deployments, delete or rename `.github/workflows/deploy.yml`, or change the variable to `false`.
 
