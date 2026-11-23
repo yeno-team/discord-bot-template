@@ -2,7 +2,12 @@ import { Client } from 'discord.js';
 import type { DataSource } from 'typeorm';
 
 import { createServices } from '../../src/app';
-import { createCommands, commandDefinitions } from '../../src/commands';
+import {
+  commandDefinitions,
+  contextMenuDefinitions,
+  createCommands,
+  createContextMenus,
+} from '../../src/commands';
 import { loadConfig } from '../../src/config';
 import type { RedisConnection } from '../../src/redis';
 import { createLogger } from '../../src/utils/logger';
@@ -41,5 +46,16 @@ describe('composition root', () => {
 
     expect(created).toEqual(deployed);
     expect(new Set(deployed).size).toBe(deployed.length);
+  });
+
+  it('creates a context menu for every deployed definition', () => {
+    const created = createContextMenus().map(
+      (menu) => `${String(menu.data.type)}:${menu.data.name}`,
+    );
+    const deployed = contextMenuDefinitions.map(
+      (definition) => `${String(definition.data.type)}:${definition.data.name}`,
+    );
+
+    expect(created).toEqual(deployed);
   });
 });

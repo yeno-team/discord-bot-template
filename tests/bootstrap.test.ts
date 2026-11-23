@@ -37,6 +37,7 @@ describe('bootstrap', () => {
 
     expect(application.context.commands.has('ping')).toBe(true);
     expect(application.context.commands.has('set-welcome')).toBe(true);
+    expect(application.context.contextMenus.size).toBe(1);
     expect(database.migrations).toHaveLength(1);
     expect(connect).toHaveBeenCalled();
     await application.shutdown('test complete');

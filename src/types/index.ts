@@ -3,6 +3,12 @@ export type {
   CommandDefinition,
   CommandExecutor,
   CommandMetadata,
+  ContextMenuClass,
+  ContextMenuCommand,
+  ContextMenuDefinition,
+  ContextMenuExecutor,
+  ContextMenuInteraction,
+  ContextMenuType,
   InteractionGuards,
   SlashCommand,
 } from './command';

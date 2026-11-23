@@ -1,6 +1,7 @@
 import type { Collection } from 'discord.js';
 import {
   MessageFlags,
+  type AutocompleteInteraction,
   type ChatInputCommandInteraction,
   type Interaction,
   type PermissionsBitField,
@@ -10,15 +11,27 @@ import type { CooldownService } from '../services';
 import type {
   ComponentInteraction,
   ComponentKind,
+  ContextMenuCommand,
+  ContextMenuInteraction,
   InteractionGuards,
   SlashCommand,
 } from '../types';
 import type { AppLogger } from '../utils/logger';
+import { contextMenuKey } from './command-registry';
 import type { ComponentRegistry } from './component-registry';
 import { parseCustomId } from './custom-id';
 import { handleInteractionError } from './error-handler';
 
-type GuardedInteraction = ChatInputCommandInteraction | ComponentInteraction;
+type GuardedInteraction =
+  ChatInputCommandInteraction | ContextMenuInteraction | ComponentInteraction;
+
+export interface InteractionHandlerDependencies {
+  readonly commands: Collection<string, SlashCommand>;
+  readonly contextMenus: Collection<string, ContextMenuCommand>;
+  readonly components: ComponentRegistry;
+  readonly cooldowns: CooldownService;
+  readonly logger: AppLogger;
+}
 
 function hasPermissions(
   actual: Readonly<PermissionsBitField> | null,
@@ -35,16 +48,31 @@ function componentKind(interaction: Interaction): ComponentKind | undefined {
 }
 
 export class InteractionHandler {
-  public constructor(
-    private readonly commands: Collection<string, SlashCommand>,
-    private readonly components: ComponentRegistry,
-    private readonly cooldowns: CooldownService,
-    private readonly logger: AppLogger,
-  ) {}
+  private readonly commands: Collection<string, SlashCommand>;
+  private readonly contextMenus: Collection<string, ContextMenuCommand>;
+  private readonly components: ComponentRegistry;
+  private readonly cooldowns: CooldownService;
+  private readonly logger: AppLogger;
+
+  public constructor(dependencies: InteractionHandlerDependencies) {
+    this.commands = dependencies.commands;
+    this.contextMenus = dependencies.contextMenus;
+    this.components = dependencies.components;
+    this.cooldowns = dependencies.cooldowns;
+    this.logger = dependencies.logger;
+  }
 
   public async handle(interaction: Interaction): Promise<void> {
     if (interaction.isChatInputCommand()) {
       await this.handleCommand(interaction);
+      return;
+    }
+    if (interaction.isAutocomplete()) {
+      await this.handleAutocomplete(interaction);
+      return;
+    }
+    if (interaction.isUserContextMenuCommand() || interaction.isMessageContextMenuCommand()) {
+      await this.handleContextMenu(interaction);
       return;
     }
 
@@ -68,6 +96,47 @@ export class InteractionHandler {
       `${interaction.commandName}:${interaction.user.id}`,
       () => command.execute(interaction),
       { command: interaction.commandName },
+    );
+  }
+
+  /**
+   * Autocomplete fires on every keystroke, so it skips cooldowns and permission checks
+   * (Discord already hides commands members cannot use). Failures answer with no choices.
+   */
+  private async handleAutocomplete(interaction: AutocompleteInteraction): Promise<void> {
+    const command = this.commands.get(interaction.commandName);
+    try {
+      if (command?.autocomplete === undefined || command.metadata.enabled === false) {
+        await interaction.respond([]);
+        return;
+      }
+      await command.autocomplete(interaction);
+    } catch (error) {
+      this.logger.error(
+        { err: error, command: interaction.commandName, interactionId: interaction.id },
+        'Autocomplete failed',
+      );
+      if (!interaction.responded) await interaction.respond([]).catch(() => undefined);
+    }
+  }
+
+  private async handleContextMenu(interaction: ContextMenuInteraction): Promise<void> {
+    const type = interaction.commandType;
+    const menu = this.contextMenus.get(contextMenuKey(type, interaction.commandName));
+    if (menu === undefined || menu.metadata.enabled === false) {
+      await interaction.reply({
+        content: 'This command is unavailable.',
+        flags: MessageFlags.Ephemeral,
+      });
+      return;
+    }
+
+    await this.run(
+      interaction,
+      menu.metadata,
+      `menu:${String(type)}:${interaction.commandName}:${interaction.user.id}`,
+      () => menu.execute(interaction),
+      { contextMenu: interaction.commandName },
     );
   }
 
