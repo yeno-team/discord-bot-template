@@ -56,6 +56,7 @@ Never commit `.env`, `.env.development`, tokens, or application secrets. Product
 src/
   app/
   commands/{admin,general}/
+  components/general/
   config/
   database/{entities,migrations,repositories}/
   events/
@@ -76,7 +77,7 @@ tests/
 - Commands are classes with static Discord definitions. They validate Discord-specific input, call a service passed to their constructor, and format the response.
 - Services, repositories, handlers, and events receive their dependencies through their constructors. Nothing looks dependencies up at runtime.
 - `src/app/create-services.ts` is the composition root. It creates every long-lived object exactly once with `new`, so the TypeScript compiler checks that each class receives the dependencies it needs.
-- `src/commands/index.ts` and `src/events/index.ts` list every command and event explicitly. There is no directory scanning, decorator metadata, or DI container, so the bot runs the same way under `tsx`, `tsc`, and Jest.
+- `src/commands/index.ts`, `src/components/index.ts`, and `src/events/index.ts` list every command, component handler, and event explicitly. There is no directory scanning, decorator metadata, or DI container, so the bot runs the same way under `tsx`, `tsc`, and Jest.
 - Static command definitions can be deployed without constructing commands or initializing their runtime dependencies.
 - Command cooldowns use Redis atomic set-with-expiry operations, sharing cooldown state safely across bot replicas.
 - The TypeORM data source explicitly disables schema synchronization. Schema changes belong in migrations.
@@ -135,6 +136,43 @@ export function createCommands(services: AppServices): SlashCommand[] {
 ```
 
 Run `npm run commands:deploy:guild` after definition changes in development. Reserve `npm run commands:deploy` for production because global propagation can take longer.
+
+## Adding buttons, select menus, and modals
+
+Buttons, select menus, and modal submissions are routed by their custom ID. A custom ID is a prefix plus optional arguments separated by `:`, such as `ticket-close:42`. Build them with `createCustomId(prefix, ...args)`; the matching handler receives the arguments. Discord keeps nothing else about a component, so put any state the handler needs (an ID, a page number) in the arguments. Custom IDs are limited to 100 characters.
+
+Create a handler class under `src/components/`. `kind` is `'button'`, `'selectMenu'`, or `'modal'`, and `metadata` accepts the same `guildOnly`, `cooldownSeconds`, and permission checks as commands:
+
+```ts
+import type { ButtonInteraction } from 'discord.js';
+import type { TicketService } from '../../services/ticket.service';
+import type { ComponentHandler, InteractionGuards } from '../../types';
+
+export default class CloseTicketButton implements ComponentHandler<'button'> {
+  static readonly prefix = 'ticket-close';
+
+  readonly kind = 'button';
+  readonly prefix = CloseTicketButton.prefix;
+  readonly metadata: InteractionGuards = { guildOnly: true, cooldownSeconds: 3 };
+
+  constructor(private readonly tickets: TicketService) {}
+
+  async execute(interaction: ButtonInteraction, [ticketId]: readonly string[]): Promise<void> {
+    await this.tickets.close(ticketId ?? '');
+    await interaction.update({ content: 'Ticket closed.', components: [] });
+  }
+}
+```
+
+Attach it to a message with `new ButtonBuilder().setCustomId(createCustomId(CloseTicketButton.prefix, ticket.id))`, then add it to `src/components/index.ts`:
+
+```ts
+export function createComponents(services: AppServices): ComponentHandler[] {
+  return [new PingRefreshButton(services.health), new CloseTicketButton(services.tickets)];
+}
+```
+
+Startup fails if two handlers of the same kind share a prefix. A component whose prefix has no handler (for example, a button on an old message after you removed its handler) gets an ephemeral "no longer available" reply. The `/ping` Refresh button in `src/components/general/ping-refresh.ts` is a working example. Components do not need `commands:deploy`.
 
 ## Adding dependencies
 

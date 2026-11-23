@@ -4,10 +4,16 @@ import type { DataSource } from 'typeorm';
 import { createServices } from './app';
 import { createDiscordClient } from './client';
 import { createCommands } from './commands';
+import { createComponents } from './components';
 import { loadConfig, type AppConfig } from './config';
 import { initializeDatabase } from './database';
 import { createEvents } from './events';
-import { InteractionHandler, registerEvents, toCommandCollection } from './handlers';
+import {
+  ComponentRegistry,
+  InteractionHandler,
+  registerEvents,
+  toCommandCollection,
+} from './handlers';
 import type { RedisConnection } from './redis';
 import type { AppContext } from './types';
 import { createLogger, type AppLogger } from './utils/logger';
@@ -62,7 +68,8 @@ export async function bootstrap(options: BootstrapOptions = {}): Promise<Applica
       logger,
     };
 
-    const interactions = new InteractionHandler(commands, services.cooldowns, logger);
+    const components = new ComponentRegistry(createComponents(services));
+    const interactions = new InteractionHandler(commands, components, services.cooldowns, logger);
     registerEvents(client, createEvents({ interactions, logger }), logger);
     const { heartbeat } = services;
 
