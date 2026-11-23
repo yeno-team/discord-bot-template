@@ -15,7 +15,9 @@ import {
   toCommandCollection,
   toContextMenuCollection,
 } from './handlers';
+import { createJobs } from './jobs';
 import type { RedisConnection } from './redis';
+import { JobScheduler } from './scheduler';
 import type { AppContext } from './types';
 import { createLogger, type AppLogger } from './utils/logger';
 
@@ -81,6 +83,11 @@ export async function bootstrap(options: BootstrapOptions = {}): Promise<Applica
     });
     registerEvents(client, createEvents({ interactions, logger }), logger);
     const { heartbeat } = services;
+    const scheduler = new JobScheduler(
+      createJobs({ client, logger, services }),
+      connectedRedis,
+      logger,
+    );
 
     const application: Application = {
       context,
@@ -88,6 +95,7 @@ export async function bootstrap(options: BootstrapOptions = {}): Promise<Applica
         if (stopped) return;
         stopped = true;
         logger.info({ reason }, 'Shutting down');
+        await scheduler.stop();
         await heartbeat.stop();
         await client.destroy();
         await connectedRedis.close();
@@ -101,6 +109,7 @@ export async function bootstrap(options: BootstrapOptions = {}): Promise<Applica
       await client.login(config.discord.token);
     }
     heartbeat.start();
+    scheduler.start();
 
     return application;
   } catch (error) {

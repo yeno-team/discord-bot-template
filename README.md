@@ -61,7 +61,9 @@ src/
   database/{entities,migrations,repositories}/
   events/
   handlers/
+  jobs/
   redis/
+  scheduler/
   services/
   types/
   utils/
@@ -214,6 +216,42 @@ export function createComponents(services: AppServices): ComponentHandler[] {
 ```
 
 Startup fails if two handlers of the same kind share a prefix. A component whose prefix has no handler (for example, a button on an old message after you removed its handler) gets an ephemeral "no longer available" reply. The `/ping` Refresh button in `src/components/general/ping-refresh.ts` is a working example. Components do not need `commands:deploy`.
+
+## Adding a scheduled job
+
+Scheduled jobs run code on a cron schedule, such as a daily announcement or a weekly cleanup. Create a class under `src/jobs/`:
+
+```ts
+import type { Client } from 'discord.js';
+import type { ScheduledJob } from '../types';
+
+export class DailyReminderJob implements ScheduledJob {
+  readonly name = 'daily-reminder';
+  readonly schedule = '0 9 * * *'; // every day at 09:00
+  readonly timezone = 'America/New_York'; // optional, defaults to UTC
+
+  constructor(
+    private readonly client: Client,
+    private readonly channelId: string,
+  ) {}
+
+  async run(): Promise<void> {
+    if (!this.client.isReady()) return;
+    const channel = await this.client.channels.fetch(this.channelId);
+    if (channel?.isSendable()) await channel.send('Daily reminder!');
+  }
+}
+```
+
+Then add it to `createJobs()` in `src/jobs/index.ts`. Schedules use standard cron syntax (`minute hour day month weekday`, with an optional leading seconds field); [crontab.guru](https://crontab.guru) helps write them.
+
+- Jobs start after the bot logs in and stop on shutdown, which waits for a running job to finish.
+- A job never overlaps itself: if a run is still going when the next one is due, that run is skipped.
+- Each run takes a Redis lock, so only one replica runs it when you scale the bot out. Replicas need synced clocks (NTP), which servers have by default.
+- An invalid pattern, an invalid timezone, or a duplicate job name fails startup. A job that throws is logged and runs again at its next scheduled time.
+- Runs missed while the bot was offline are not caught up.
+
+`src/jobs/log-status.job.ts` is a working example that logs the bot's health every hour.
 
 ## Adding dependencies
 
