@@ -4,13 +4,17 @@ import type {
   RESTPostAPIChatInputApplicationCommandsJSONBody,
 } from 'discord.js';
 
-export interface CommandMetadata {
-  readonly category: string;
+/** Checks the interaction handler runs before a command or component handler executes. */
+export interface InteractionGuards {
   readonly cooldownSeconds?: number;
   readonly guildOnly?: boolean;
-  readonly enabled?: boolean;
   readonly requiredUserPermissions?: readonly PermissionResolvable[];
   readonly requiredBotPermissions?: readonly PermissionResolvable[];
+}
+
+export interface CommandMetadata extends InteractionGuards {
+  readonly category: string;
+  readonly enabled?: boolean;
 }
 
 export interface CommandDefinition {

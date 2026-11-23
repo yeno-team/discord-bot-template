@@ -1,5 +1,6 @@
 import { SlashCommandBuilder, type ChatInputCommandInteraction } from 'discord.js';
 
+import PingRefreshButton, { formatPing } from '../../components/general/ping-refresh';
 import type { HealthService } from '../../services';
 import type { CommandExecutor, CommandMetadata } from '../../types';
 
@@ -17,9 +18,9 @@ export default class PingCommand implements CommandExecutor {
   public constructor(private readonly health: HealthService) {}
 
   public async execute(interaction: ChatInputCommandInteraction): Promise<void> {
-    const status = this.health.getStatus();
     await interaction.reply({
-      content: `Pong! Database: ${status.database}. Uptime: ${String(status.uptimeSeconds)}s.`,
+      content: formatPing(this.health.getStatus()),
+      components: [PingRefreshButton.row()],
     });
   }
 }
