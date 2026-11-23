@@ -55,7 +55,7 @@ Never commit `.env`, `.env.development`, tokens, or application secrets. Product
 ```text
 src/
   app/
-  commands/{admin,general}/
+  commands/{admin,context,general}/
   components/general/
   config/
   database/{entities,migrations,repositories}/
@@ -136,6 +136,47 @@ export function createCommands(services: AppServices): SlashCommand[] {
 ```
 
 Run `npm run commands:deploy:guild` after definition changes in development. Reserve `npm run commands:deploy` for production because global propagation can take longer.
+
+### Autocomplete
+
+Mark a string, integer, or number option with `.setAutocomplete(true)` and add an `autocomplete` method to the command class. Discord calls it as the user types, so it skips cooldowns and must answer within three seconds with at most 25 choices:
+
+```ts
+async autocomplete(interaction: AutocompleteInteraction): Promise<void> {
+  const typed = interaction.options.getFocused().toLowerCase();
+  const matches = this.colors.filter((color) => color.startsWith(typed)).slice(0, 25);
+  await interaction.respond(matches.map((color) => ({ name: color, value: color })));
+}
+```
+
+If the method is missing or throws, the user sees an empty list. Autocomplete only suggests values, so `execute` must still validate whatever the user submits.
+
+## Adding a right-click (context menu) command
+
+Context menu commands appear under **Apps** when someone right-clicks a user or a message. Create a class like a slash command, using `ContextMenuCommandBuilder`:
+
+```ts
+import { ApplicationCommandType, ContextMenuCommandBuilder, MessageFlags } from 'discord.js';
+import type { CommandMetadata, ContextMenuExecutor, ContextMenuInteraction } from '../../types';
+
+export default class QuoteMenu implements ContextMenuExecutor {
+  static readonly data = new ContextMenuCommandBuilder()
+    .setName('Quote Message')
+    .setType(ApplicationCommandType.Message);
+
+  static readonly metadata: CommandMetadata = { category: 'general', cooldownSeconds: 5 };
+
+  async execute(interaction: ContextMenuInteraction): Promise<void> {
+    if (!interaction.isMessageContextMenuCommand()) return;
+    await interaction.reply({
+      content: `> ${interaction.targetMessage.content}`,
+      flags: MessageFlags.Ephemeral,
+    });
+  }
+}
+```
+
+Add it to `contextMenuDefinitions` and `createContextMenus()` in `src/commands/index.ts`, then run `npm run commands:deploy:guild`. Menus support the same metadata checks as slash commands. Discord allows at most 5 user menus and 5 message menus per bot. `src/commands/context/user-info.ts` is a working example.
 
 ## Adding buttons, select menus, and modals
 

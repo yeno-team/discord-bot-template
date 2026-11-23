@@ -1,18 +1,21 @@
 import {
+  ApplicationCommandType,
   Collection,
+  ContextMenuCommandBuilder,
   MessageFlags,
   SlashCommandBuilder,
   type ChatInputCommandInteraction,
   type Interaction,
 } from 'discord.js';
 
-import { ComponentRegistry, InteractionHandler } from '../../src/handlers';
+import { ComponentRegistry, contextMenuKey, InteractionHandler } from '../../src/handlers';
 import type { RedisConnection } from '../../src/redis';
 import { CooldownService } from '../../src/services';
-import type { ComponentHandler, SlashCommand } from '../../src/types';
+import type { ComponentHandler, ContextMenuCommand, SlashCommand } from '../../src/types';
 import type { AppLogger } from '../../src/utils/logger';
 
-type Kind = 'chat' | 'button' | 'selectMenu' | 'modal';
+type Kind =
+  'chat' | 'autocomplete' | 'userMenu' | 'messageMenu' | 'button' | 'selectMenu' | 'modal';
 
 function createInteraction(
   kind: Kind,
@@ -21,6 +24,11 @@ function createInteraction(
   const reply = jest.fn().mockResolvedValue(undefined);
   const interaction = {
     isChatInputCommand: () => kind === 'chat',
+    isAutocomplete: () => kind === 'autocomplete',
+    isUserContextMenuCommand: () => kind === 'userMenu',
+    isMessageContextMenuCommand: () => kind === 'messageMenu',
+    commandType:
+      kind === 'messageMenu' ? ApplicationCommandType.Message : ApplicationCommandType.User,
     isButton: () => kind === 'button',
     isAnySelectMenu: () => kind === 'selectMenu',
     isModalSubmit: () => kind === 'modal',
@@ -43,6 +51,7 @@ function createInteraction(
 function createHandler(
   options: {
     readonly command?: SlashCommand;
+    readonly contextMenu?: ContextMenuCommand;
     readonly components?: readonly ComponentHandler[];
     readonly cooldownFree?: boolean;
   } = {},
@@ -51,12 +60,16 @@ function createHandler(
     setIfAbsent: jest.fn().mockResolvedValue(options.cooldownFree ?? true),
     getTtlMilliseconds: jest.fn().mockResolvedValue(2_000),
   } as unknown as RedisConnection;
-  return new InteractionHandler(
-    new Collection(options.command === undefined ? [] : [['example', options.command]]),
-    new ComponentRegistry(options.components ?? []),
-    new CooldownService(redis),
-    { error: jest.fn(), warn: jest.fn(), debug: jest.fn() } as unknown as AppLogger,
-  );
+  const menu = options.contextMenu;
+  return new InteractionHandler({
+    commands: new Collection(options.command === undefined ? [] : [['example', options.command]]),
+    contextMenus: new Collection(
+      menu === undefined ? [] : [[contextMenuKey(menu.data.type, menu.data.name), menu]],
+    ),
+    components: new ComponentRegistry(options.components ?? []),
+    cooldowns: new CooldownService(redis),
+    logger: { error: jest.fn(), warn: jest.fn(), debug: jest.fn() } as unknown as AppLogger,
+  });
 }
 
 function createCommand(metadata: SlashCommand['metadata']): {
@@ -176,5 +189,87 @@ describe('InteractionHandler components', () => {
     await createHandler().handle(interaction);
 
     expect(reply).not.toHaveBeenCalled();
+  });
+});
+
+describe('InteractionHandler autocomplete', () => {
+  it('passes autocomplete to the command', async () => {
+    const { command } = createCommand({ category: 'test' });
+    const autocomplete = jest.fn().mockResolvedValue(undefined);
+    const { interaction } = createInteraction('autocomplete');
+
+    await createHandler({ command: { ...command, autocomplete } }).handle(interaction);
+
+    expect(autocomplete).toHaveBeenCalledWith(interaction);
+  });
+
+  it('responds with no choices when the command has no autocomplete', async () => {
+    const respond = jest.fn().mockResolvedValue(undefined);
+    const { command } = createCommand({ category: 'test' });
+    const { interaction } = createInteraction('autocomplete', { respond });
+
+    await createHandler({ command }).handle(interaction);
+
+    expect(respond).toHaveBeenCalledWith([]);
+  });
+
+  it('responds with no choices when autocomplete throws', async () => {
+    const respond = jest.fn().mockResolvedValue(undefined);
+    const { command } = createCommand({ category: 'test' });
+    const autocomplete = jest.fn().mockRejectedValue(new Error('boom'));
+    const { interaction } = createInteraction('autocomplete', { respond, responded: false });
+
+    await createHandler({ command: { ...command, autocomplete } }).handle(interaction);
+
+    expect(respond).toHaveBeenCalledWith([]);
+  });
+});
+
+describe('InteractionHandler context menus', () => {
+  function createMenu(
+    type: ApplicationCommandType.User | ApplicationCommandType.Message,
+    metadata: ContextMenuCommand['metadata'] = { category: 'test' },
+  ): { menu: ContextMenuCommand; execute: jest.Mock } {
+    const execute = jest.fn().mockResolvedValue(undefined);
+    const menu: ContextMenuCommand = {
+      data: new ContextMenuCommandBuilder().setName('example').setType(type),
+      metadata,
+      execute,
+    };
+    return { menu, execute };
+  }
+
+  it('runs a user menu', async () => {
+    const { menu, execute } = createMenu(ApplicationCommandType.User);
+    const { interaction } = createInteraction('userMenu');
+
+    await createHandler({ contextMenu: menu }).handle(interaction);
+
+    expect(execute).toHaveBeenCalledWith(interaction);
+  });
+
+  it('does not run a user menu for a message menu with the same name', async () => {
+    const { menu, execute } = createMenu(ApplicationCommandType.User);
+    const { interaction, reply } = createInteraction('messageMenu');
+
+    await createHandler({ contextMenu: menu }).handle(interaction);
+
+    expect(execute).not.toHaveBeenCalled();
+    expect(reply).toHaveBeenCalledWith({
+      content: 'This command is unavailable.',
+      flags: MessageFlags.Ephemeral,
+    });
+  });
+
+  it('applies guards to context menus', async () => {
+    const { menu, execute } = createMenu(ApplicationCommandType.Message, {
+      category: 'test',
+      guildOnly: true,
+    });
+    const { interaction } = createInteraction('messageMenu', { guildId: null });
+
+    await createHandler({ contextMenu: menu }).handle(interaction);
+
+    expect(execute).not.toHaveBeenCalled();
   });
 });

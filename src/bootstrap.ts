@@ -3,7 +3,7 @@ import type { DataSource } from 'typeorm';
 
 import { createServices } from './app';
 import { createDiscordClient } from './client';
-import { createCommands } from './commands';
+import { createCommands, createContextMenus } from './commands';
 import { createComponents } from './components';
 import { loadConfig, type AppConfig } from './config';
 import { initializeDatabase } from './database';
@@ -13,6 +13,7 @@ import {
   InteractionHandler,
   registerEvents,
   toCommandCollection,
+  toContextMenuCollection,
 } from './handlers';
 import type { RedisConnection } from './redis';
 import type { AppContext } from './types';
@@ -60,16 +61,24 @@ export async function bootstrap(options: BootstrapOptions = {}): Promise<Applica
     redis = connectedRedis;
     await connectedRedis.connect();
     const commands = toCommandCollection(createCommands(services));
+    const contextMenus = toContextMenuCollection(createContextMenus());
     const context: AppContext = {
       client,
       commands,
+      contextMenus,
       config,
       database,
       logger,
     };
 
     const components = new ComponentRegistry(createComponents(services));
-    const interactions = new InteractionHandler(commands, components, services.cooldowns, logger);
+    const interactions = new InteractionHandler({
+      commands,
+      contextMenus,
+      components,
+      cooldowns: services.cooldowns,
+      logger,
+    });
     registerEvents(client, createEvents({ interactions, logger }), logger);
     const { heartbeat } = services;
 

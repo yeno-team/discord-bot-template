@@ -3,11 +3,12 @@ import type { DataSource } from 'typeorm';
 
 import type { AppConfig } from '../config';
 import type { AppLogger } from '../utils/logger';
-import type { SlashCommand } from './command';
+import type { ContextMenuCommand, SlashCommand } from './command';
 
 export interface AppContext {
   readonly client: Client;
   readonly commands: Collection<string, SlashCommand>;
+  readonly contextMenus: Collection<string, ContextMenuCommand>;
   readonly config: AppConfig;
   readonly database: DataSource;
   readonly logger: AppLogger;

@@ -1,7 +1,7 @@
 import { REST, Routes } from 'discord.js';
 
 import { ConfigError, loadConfig } from '../src/config';
-import { commandDefinitions } from '../src/commands';
+import { commandDefinitions, contextMenuDefinitions } from '../src/commands';
 import { toError } from '../src/utils/errors';
 import { createLogger } from '../src/utils/logger';
 
@@ -14,7 +14,7 @@ async function deploy(): Promise<void> {
     throw new ConfigError(['DISCORD_GUILD_ID: required for guild command deployment']);
   }
 
-  const payload = commandDefinitions
+  const payload = [...commandDefinitions, ...contextMenuDefinitions]
     .filter((command) => command.metadata.enabled !== false)
     .map((command) => command.data.toJSON());
   const guildId = config.discord.guildId;
@@ -27,7 +27,7 @@ async function deploy(): Promise<void> {
   await rest.put(route, { body: payload });
   logger.info(
     { commandCount: payload.length, scope: guildScoped ? 'guild' : 'global' },
-    'Slash commands deployed',
+    'Application commands deployed',
   );
 }
 
