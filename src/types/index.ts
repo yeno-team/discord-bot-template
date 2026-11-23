@@ -20,3 +20,4 @@ export type {
 } from './component';
 export type { AppContext } from './context';
 export type { BotEvent } from './event';
+export type { ScheduledJob } from './job';
